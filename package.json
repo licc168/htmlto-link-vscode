@@ -1,0 +1,114 @@
+{
+  "name": "htmlto-link-vscode",
+  "displayName": "HTML to Link",
+  "description": "Deploy static HTML folders to htmlto.link with optional token-based publishing.",
+  "version": "0.1.0",
+  "publisher": "licc",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:htmlToLink.openPanel",
+    "onCommand:htmlToLink.deployFolder",
+    "onCommand:htmlToLink.setToken",
+    "onCommand:htmlToLink.clearToken",
+    "onCommand:htmlToLink.openLastDeployUrl"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "htmlToLink.openPanel",
+        "category": "HTML to Link",
+        "title": "打开部署面板",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "htmlToLink.deployFolder",
+        "category": "HTML to Link",
+        "title": "部署文件夹",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "htmlToLink.setToken",
+        "category": "HTML to Link",
+        "title": "设置 Token",
+        "icon": "$(key)"
+      },
+      {
+        "command": "htmlToLink.clearToken",
+        "category": "HTML to Link",
+        "title": "清除 Token",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "htmlToLink.openLastDeployUrl",
+        "category": "HTML to Link",
+        "title": "打开最近部署链接",
+        "icon": "$(link-external)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "htmlToLink.deployFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@90"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "HTML to Link",
+      "properties": {
+        "htmlToLink.apiBaseUrl": {
+          "type": "string",
+          "default": "https://htmlto.link",
+          "description": "htmlto.link 部署接口的基础地址。"
+        },
+        "htmlToLink.autoCopyUrl": {
+          "type": "boolean",
+          "default": true,
+          "description": "部署成功后自动复制链接。"
+        },
+        "htmlToLink.defaultEntryFile": {
+          "type": "string",
+          "default": "index.html",
+          "description": "自动识别入口文件时优先使用的文件名。"
+        },
+        "htmlToLink.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "node_modules/**",
+            ".git/**",
+            ".next/**",
+            "dist/cache/**",
+            ".turbo/**"
+          ],
+          "description": "打包上传时默认排除的目录或文件模式。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "check": "tsc -p . --noEmit",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.57",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

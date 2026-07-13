@@ -1,0 +1,1 @@
+{"version":3,"file":"clearToken.js","sourceRoot":"","sources":["../../src/commands/clearToken.ts"],"names":[],"mappings":";;AAGA,0DAIC;AAND,8DAA0D;AAE1D,SAAgB,uBAAuB,CAAC,OAAgC;IACtE,OAAO,KAAK,IAAI,EAAE;QAChB,MAAM,iCAAe,CAAC,iBAAiB,CAAC,OAAO,CAAC,CAAA;IAClD,CAAC,CAAA;AACH,CAAC"}

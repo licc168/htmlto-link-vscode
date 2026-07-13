@@ -1,0 +1,1 @@
+{"version":3,"file":"deployFolder.js","sourceRoot":"","sources":["../../src/commands/deployFolder.ts"],"names":[],"mappings":";;AAGA,8DAIC;AAND,8DAA0D;AAE1D,SAAgB,yBAAyB,CAAC,OAAgC;IACxE,OAAO,KAAK,EAAE,WAAwB,EAAE,EAAE;QACxC,MAAM,iCAAe,CAAC,YAAY,CAAC,OAAO,EAAE,WAAW,CAAC,CAAA;IAC1D,CAAC,CAAA;AACH,CAAC"}

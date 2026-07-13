@@ -1,0 +1,9 @@
+node_modules/
+*.vsix
+
+# Local agent/IDE artifacts
+.trae/
+
+# OS files
+.DS_Store
+Thumbs.db

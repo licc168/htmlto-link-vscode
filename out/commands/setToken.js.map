@@ -1,0 +1,1 @@
+{"version":3,"file":"setToken.js","sourceRoot":"","sources":["../../src/commands/setToken.ts"],"names":[],"mappings":";;AAGA,sDAIC;AAND,8DAA0D;AAE1D,SAAgB,qBAAqB,CAAC,OAAgC;IACpE,OAAO,KAAK,IAAI,EAAE;QAChB,MAAM,iCAAe,CAAC,iBAAiB,CAAC,OAAO,CAAC,CAAA;IAClD,CAAC,CAAA;AACH,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"openPanel.js","sourceRoot":"","sources":["../../src/commands/openPanel.ts"],"names":[],"mappings":";;AAGA,wDAIC;AAND,8DAA0D;AAE1D,SAAgB,sBAAsB,CAAC,OAAgC;IACrE,OAAO,KAAK,EAAE,WAAwB,EAAE,EAAE;QACxC,MAAM,iCAAe,CAAC,YAAY,CAAC,OAAO,EAAE,WAAW,CAAC,CAAA;IAC1D,CAAC,CAAA;AACH,CAAC"}
