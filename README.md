@@ -1,8 +1,26 @@
-# Quick Static Site Publish
+# htmlto.link - Publish Static Sites
 
 ## 中文说明
 
-一键把本地静态网站文件夹发布到 `htmlto.link`，适用于 VS Code、Cursor 和 Trae。
+一键把本地 HTML / 静态网站文件夹发布成可公开访问的链接。
+
+- 不用手动压缩再上传
+- 自动识别入口 HTML 文件
+- 支持游客发布和 Token 发布
+- 发布后立即获得公开 URL
+
+### 适合谁用
+
+- HTML 落地页
+- 前端演示项目和原型
+- 导出的静态文档站点
+- 需要快速分享的项目预览
+
+### 3 步完成发布
+
+1. 打开命令面板，执行 `Quick Static Site Publish: Open Publish Panel`
+2. 选择文件夹，并确认入口 HTML 文件
+3. 发布后直接复制或打开公开链接
 
 ### 插件界面
 
@@ -15,13 +33,6 @@
 - 支持游客发布，适合快速临时分享
 - 支持 Token 发布，适合重复部署和长期使用
 - 部署完成后立即返回公开访问链接
-
-### 适合场景
-
-- 静态 HTML 落地页
-- 前端演示项目和原型
-- 导出的文档站点
-- 需要快速分享的项目预览
 
 ### 快速开始
 
@@ -68,7 +79,19 @@
 
 ## English
 
-Publish a local static site folder to `htmlto.link` in one click from VS Code, Cursor, or Trae.
+Publish local HTML and static site folders to `htmlto.link` in one click from VS Code, Cursor, or Trae.
+
+- No manual zip and upload
+- Automatic entry HTML detection
+- Guest mode and token deployment
+- Instant public URL after publish
+
+### Best For
+
+- HTML landing pages
+- Frontend demos and prototypes
+- Exported static documentation sites
+- Project previews you want to share fast
 
 ### Screenshot
 
@@ -81,13 +104,6 @@ Publish a local static site folder to `htmlto.link` in one click from VS Code, C
 - Support guest publishing for quick temporary sharing
 - Support token-based publishing for repeatable and longer-term use
 - Return a public URL immediately after deployment
-
-### Best For
-
-- Static HTML landing pages
-- Frontend demos and prototypes
-- Exported documentation sites
-- Simple project previews for sharing
 
 ### Quick Start
 
@@ -131,5 +147,4 @@ Publish a local static site folder to `htmlto.link` in one click from VS Code, C
 
 - This extension focuses only on static site deployment
 - It does not provide page editing, template generation, or visual page building
-
 

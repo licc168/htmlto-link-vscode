@@ -1,6 +1,6 @@
 {
-  "displayName": "Quick Static Site Publish",
-  "description": "One-click publish local static site folders to htmlto.link with automatic entry HTML detection, guest mode, token publishing, and instant public URLs.",
+  "displayName": "HTML & Static Site Deploy",
+  "description": "Publish local HTML and static site folders to htmlto.link in one click. Auto-detect entry HTML, deploy as guest or with token, and get a public URL instantly.",
   "commandCategory": "Quick Static Site Publish",
   "command.openPanel.title": "Open Publish Panel",
   "command.deployFolder.title": "Select Folder and Publish",

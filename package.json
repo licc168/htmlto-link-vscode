@@ -3,7 +3,7 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "licc",
   "private": true,
   "repository": {
@@ -15,6 +15,18 @@
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "html",
+    "static site",
+    "website",
+    "publish",
+    "deploy",
+    "landing page",
+    "frontend demo",
+    "share",
+    "preview",
+    "htmlto.link"
   ],
   "activationEvents": [
     "onCommand:htmlToLink.openPanel",
