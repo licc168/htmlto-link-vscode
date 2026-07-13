@@ -3,12 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createOpenLastDeployUrlCommand = createOpenLastDeployUrlCommand;
 const deploymentState_1 = require("../core/deploy/deploymentState");
 const HtmlToLinkPanel_1 = require("../panel/HtmlToLinkPanel");
+const i18n_1 = require("../panel/i18n");
 const openExternal_1 = require("../utils/openExternal");
 function createOpenLastDeployUrlCommand(context) {
     return async () => {
         const lastUrl = (0, deploymentState_1.getLastDeployedUrl)(context);
         if (!lastUrl) {
-            await HtmlToLinkPanel_1.HtmlToLinkPanel.showToastInPanel(context, 'warning', '当前还没有可打开的部署链接。');
+            const locale = await (0, i18n_1.getPreferredUiLocale)(context);
+            await HtmlToLinkPanel_1.HtmlToLinkPanel.showToastInPanel(context, 'warning', i18n_1.messages[locale].panel.toastNoLastLink);
             return;
         }
         await (0, openExternal_1.openExternalUrl)(lastUrl);

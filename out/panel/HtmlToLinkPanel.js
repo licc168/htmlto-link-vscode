@@ -42,23 +42,21 @@ const deploymentState_1 = require("../core/deploy/deploymentState");
 const performDeployment_1 = require("../core/deploy/performDeployment");
 const notifications_1 = require("../utils/notifications");
 const openExternal_1 = require("../utils/openExternal");
+const i18n_1 = require("./i18n");
 const sidebarStateEvents_1 = require("./sidebarStateEvents");
 class HtmlToLinkPanel {
     static currentPanel;
     panel;
     context;
+    locale;
     isReady = false;
     pendingMessages = [];
-    state = {
-        entryFile: (0, detectEntryFile_1.getDefaultEntryFile)(),
-        entryCandidates: [],
-        hasSavedToken: false,
-        tokenMode: 'guest',
-        canReuseExistingShareUrl: false,
-    };
+    state;
     static async createOrShow(context, resourceUri) {
+        const locale = await (0, i18n_1.getPreferredUiLocale)(context);
         const column = vscode.window.activeTextEditor?.viewColumn;
         if (HtmlToLinkPanel.currentPanel) {
+            await HtmlToLinkPanel.currentPanel.applyLocale(locale);
             HtmlToLinkPanel.currentPanel.panel.reveal(column);
             if (resourceUri?.fsPath) {
                 await HtmlToLinkPanel.currentPanel.loadFolder(resourceUri.fsPath);
@@ -68,17 +66,17 @@ class HtmlToLinkPanel {
             }
             return HtmlToLinkPanel.currentPanel;
         }
-        const panel = vscode.window.createWebviewPanel('htmlToLink.panel', 'HTML to Link', column ?? vscode.ViewColumn.One, {
+        const panel = vscode.window.createWebviewPanel('htmlToLink.panel', i18n_1.messages[locale].panel.panelTitle, column ?? vscode.ViewColumn.One, {
             enableScripts: true,
             retainContextWhenHidden: true,
         });
-        HtmlToLinkPanel.currentPanel = new HtmlToLinkPanel(context, panel, resourceUri?.fsPath);
+        HtmlToLinkPanel.currentPanel = new HtmlToLinkPanel(context, panel, locale, resourceUri?.fsPath);
         return HtmlToLinkPanel.currentPanel;
     }
     static async openForTokenInput(context) {
         const panel = await HtmlToLinkPanel.createOrShow(context);
         panel.setTokenMode('custom', true);
-        panel.showToast('info', '请在面板中输入 Token，可直接保存到本地。');
+        panel.showToast('info', panel.copy.toastPromptEnterToken);
         return panel;
     }
     static async requestClearToken(context) {
@@ -91,10 +89,22 @@ class HtmlToLinkPanel {
         panel.showToast(intent, text);
         return panel;
     }
-    constructor(context, panel, initialFolderPath) {
+    constructor(context, panel, locale, initialFolderPath) {
         this.context = context;
         this.panel = panel;
+        this.locale = locale;
+        this.state = {
+            uiLocale: locale,
+            entryFile: (0, detectEntryFile_1.getDefaultEntryFile)(),
+            entryCandidates: [],
+            hasSavedToken: false,
+            tokenMode: 'guest',
+            canReuseExistingShareUrl: false,
+        };
         this.panel.webview.html = this.getHtml(this.panel.webview);
+        this.context.subscriptions.push((0, sidebarStateEvents_1.onSidebarStateChanged)(() => {
+            void this.syncLocaleFromPreference();
+        }));
         this.panel.onDidDispose(() => {
             HtmlToLinkPanel.currentPanel = undefined;
         });
@@ -108,6 +118,11 @@ class HtmlToLinkPanel {
                     }
                     this.flushPendingMessages();
                     break;
+                case 'setLocale':
+                    if ((0, i18n_1.isUiLocale)(message.locale)) {
+                        await this.applyLocale(message.locale, true);
+                    }
+                    break;
                 case 'chooseFolder':
                     await this.handleChooseFolder();
                     break;
@@ -117,7 +132,7 @@ class HtmlToLinkPanel {
                 case 'copyUrl':
                     if (typeof message.url === 'string' && message.url) {
                         await (0, notifications_1.copyToClipboard)(message.url);
-                        this.showToast('success', '链接已复制。');
+                        this.showToast('success', this.copy.toastCopied);
                     }
                     break;
                 case 'openUrl':
@@ -131,12 +146,34 @@ class HtmlToLinkPanel {
                 case 'clearTokenConfirmed':
                     await (0, tokenStore_1.clearSavedToken)(this.context);
                     await this.refreshState();
-                    this.showToast('success', '已清除保存的 Token。');
+                    this.showToast('success', this.copy.toastClearedToken);
                     break;
                 default:
                     break;
             }
         });
+    }
+    get copy() {
+        return i18n_1.messages[this.locale].panel;
+    }
+    async syncLocaleFromPreference() {
+        const preferredLocale = await (0, i18n_1.getPreferredUiLocale)(this.context);
+        if (preferredLocale !== this.locale) {
+            this.locale = preferredLocale;
+            this.panel.title = this.copy.panelTitle;
+            this.state.uiLocale = this.locale;
+            this.postState();
+        }
+    }
+    async applyLocale(locale, persist = false) {
+        this.locale = locale;
+        this.panel.title = this.copy.panelTitle;
+        this.state.uiLocale = locale;
+        if (persist) {
+            await (0, i18n_1.setPreferredUiLocale)(this.context, locale);
+            (0, sidebarStateEvents_1.notifySidebarStateChanged)();
+        }
+        await this.refreshState();
     }
     async handleChooseFolder() {
         const picked = await (0, selectFolder_1.selectFolder)(this.state.folderPath ? vscode.Uri.file(this.state.folderPath) : undefined);
@@ -147,6 +184,7 @@ class HtmlToLinkPanel {
     }
     async refreshState() {
         const savedToken = await (0, tokenStore_1.getSavedToken)(this.context);
+        this.state.uiLocale = this.locale;
         this.state.hasSavedToken = Boolean(savedToken);
         this.state.lastDeployUrl = (0, deploymentState_1.getLastDeployedUrl)(this.context);
         if (this.state.hasSavedToken && this.state.tokenMode === 'guest') {
@@ -185,24 +223,24 @@ class HtmlToLinkPanel {
         try {
             const folderPath = payload.folderPath?.trim() || this.state.folderPath;
             if (!folderPath) {
-                throw new Error('请先选择要部署的文件夹。');
+                throw new Error(this.copy.errorChooseFolder);
             }
             const entryFile = payload.entryFile?.trim() || this.state.entryFile;
             if (!entryFile) {
-                throw new Error('请填写入口文件。');
+                throw new Error(this.copy.errorEntryRequired);
             }
             const tokenMode = payload.tokenMode || this.state.tokenMode;
             let token = null;
             if (tokenMode === 'saved') {
                 token = (await (0, tokenStore_1.getSavedToken)(this.context)) || null;
                 if (!token) {
-                    throw new Error('当前没有已保存的 Token，请改为输入 Token 或游客部署。');
+                    throw new Error(this.copy.errorSavedTokenMissing);
                 }
             }
             if (tokenMode === 'custom') {
                 const customToken = payload.customToken?.trim();
                 if (!customToken) {
-                    throw new Error('请输入 Token。');
+                    throw new Error(this.copy.errorCustomTokenRequired);
                 }
                 token = customToken;
                 if (payload.saveToken) {
@@ -215,7 +253,7 @@ class HtmlToLinkPanel {
                 : undefined;
             const updateToken = tokenMode === 'guest' && shareUrl ? this.state.previousUpdateToken : undefined;
             if (payload.useExistingShareUrl && this.state.previousShareUrl && !shareUrl) {
-                this.showToast('warning', '当前历史部署记录不满足更新条件，本次将创建一个新的链接。');
+                this.showToast('warning', this.copy.toastReuseUnavailable);
             }
             const result = await (0, performDeployment_1.performDeployment)({
                 context: this.context,
@@ -237,17 +275,17 @@ class HtmlToLinkPanel {
             this.state.previousExpiresAt = result.expiresAt;
             this.state.lastResultUrl = result.shareUrl;
             await this.refreshState();
-            this.showToast('success', getAutoCopyUrl()
-                ? `部署成功，链接已复制：${result.shareUrl}`
-                : `部署成功：${result.shareUrl}`);
+            this.showToast('success', (0, i18n_1.formatMessage)(getAutoCopyUrl()
+                ? this.copy.toastDeploySuccessCopied
+                : this.copy.toastDeploySuccess, { url: result.shareUrl }));
         }
         catch (error) {
             const message = error instanceof Error
                 ? error.message
                 : typeof error === 'string'
                     ? error
-                    : '未知错误';
-            this.showToast('error', `部署失败：${message}`);
+                    : this.copy.unknownError;
+            this.showToast('error', (0, i18n_1.formatMessage)(this.copy.errorDeployFailed, { message }));
         }
     }
     postState() {
@@ -305,8 +343,9 @@ class HtmlToLinkPanel {
     }
     getHtml(webview) {
         const nonce = getNonce();
+        const localizedMessages = JSON.stringify(i18n_1.messages);
         return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta
@@ -314,7 +353,7 @@ class HtmlToLinkPanel {
     content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"
   />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HTML to Link</title>
+  <title>${this.copy.panelTitle}</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -343,16 +382,54 @@ class HtmlToLinkPanel {
         linear-gradient(135deg, color-mix(in srgb, var(--vscode-editorWidget-background) 88%, transparent), color-mix(in srgb, var(--vscode-sideBar-background) 84%, transparent));
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.2));
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+      display: grid;
+      gap: 16px;
     }
-    .hero h1 {
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .hero-copy h1 {
       margin: 0 0 8px;
       font-size: 26px;
       line-height: 1.2;
     }
-    .hero p {
+    .hero-copy p {
       margin: 0;
       color: var(--vscode-descriptionForeground);
       line-height: 1.6;
+    }
+    .locale-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
+      background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+    }
+    .locale-label {
+      font-size: 12px;
+      color: var(--vscode-descriptionForeground);
+      padding-left: 8px;
+    }
+    .locale-switch {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .locale-switch button {
+      min-height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--vscode-descriptionForeground);
+    }
+    .locale-switch button.active {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
     }
     .grid {
       display: grid;
@@ -387,9 +464,11 @@ class HtmlToLinkPanel {
     .row.wrap {
       flex-wrap: wrap;
     }
-    label {
+    .field {
       display: grid;
       gap: 6px;
+    }
+    .field-label {
       font-size: 12px;
       color: var(--vscode-descriptionForeground);
     }
@@ -733,6 +812,10 @@ class HtmlToLinkPanel {
       .app {
         padding: 16px;
       }
+      .hero-top {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
@@ -740,101 +823,108 @@ class HtmlToLinkPanel {
   <div id="toastViewport" class="toast-viewport"></div>
   <div class="app">
     <section class="hero">
-      <h1>HTML to Link</h1>
-      <p>把本地静态 HTML 项目发布成可访问链接。支持游客 24 小时临时部署，也支持使用 Token 进行长期可管理部署。</p>
+      <div class="hero-top">
+        <div class="hero-copy">
+          <h1 id="heroTitle"></h1>
+          <p id="heroDescription"></p>
+        </div>
+        <div class="locale-box">
+          <span id="localeLabel" class="locale-label"></span>
+          <div class="locale-switch">
+            <button id="localeZhBtn" type="button">中文</button>
+            <button id="localeEnBtn" type="button">EN</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <div class="grid">
       <section class="card stack">
         <div class="row wrap" style="justify-content: space-between;">
-          <h2>项目目录</h2>
-          <span id="savedTokenBadge" class="badge">未保存 Token</span>
+          <h2 id="folderSectionTitle"></h2>
+          <span id="savedTokenBadge" class="badge"></span>
         </div>
-        <label>
-          选择要部署的文件夹
+        <div class="field">
+          <div id="folderLabel" class="field-label"></div>
           <div class="row">
-            <input id="folderPath" class="grow" type="text" placeholder="请选择本地静态站点目录" />
-            <button id="chooseFolderBtn" type="button">选择文件夹</button>
+            <input id="folderPath" class="grow" type="text" />
+            <button id="chooseFolderBtn" type="button"></button>
           </div>
-        </label>
-        <label>
-          入口文件
+        </div>
+        <div class="field">
+          <div id="entryFileLabel" class="field-label"></div>
           <select id="entryFileSelect" class="hidden"></select>
-          <input id="entryFile" type="text" placeholder="例如：index.html" />
-          <div id="entryFileHint" class="muted">选择文件夹后，自动列出可部署的 HTML 文件。</div>
-        </label>
+          <input id="entryFile" type="text" />
+          <div id="entryFileHint" class="muted"></div>
+        </div>
         <div id="previousShareBlock" class="note info hidden"></div>
       </section>
 
       <section class="card stack">
-        <h2>部署身份</h2>
+        <h2 id="identitySectionTitle"></h2>
         <div id="savedMode" class="mode-grid hidden">
           <button class="mode-option" data-mode="saved" type="button">
-            <strong>使用已保存 Token</strong>
-            <span>适合长期保留链接和后续更新版本</span>
+            <strong id="savedModeTitle"></strong>
+            <span id="savedModeDesc"></span>
           </button>
         </div>
         <div class="mode-grid">
           <button class="mode-option" data-mode="custom" type="button">
-            <strong>输入新 Token</strong>
-            <span>使用注册账号部署，可选择保存到本地</span>
+            <strong id="customModeTitle"></strong>
+            <span id="customModeDesc"></span>
           </button>
           <button class="mode-option" data-mode="guest" type="button">
-            <strong>游客部署</strong>
-            <span>无需登录，但生成的链接仅保留 24 小时</span>
+            <strong id="guestModeTitle"></strong>
+            <span id="guestModeDesc"></span>
           </button>
         </div>
         <div id="customTokenBlock" class="stack hidden">
-          <label>
-            Token
-            <input id="customToken" type="password" placeholder="请输入 HTML to Link Token" />
-          </label>
-          <button id="howToGetTokenBtn" class="inline-action" type="button">
-            <strong>获取 Token</strong>
-          </button>
-          <div class="muted">
-            没有 Token 也可以先游客部署；如果需要长期保存链接，点击上方按钮查看获取方式。
+          <div class="field">
+            <div id="tokenLabel" class="field-label"></div>
+            <input id="customToken" type="password" />
           </div>
+          <button id="howToGetTokenBtn" class="inline-action" type="button">
+            <strong id="howToGetTokenText"></strong>
+          </button>
+          <div id="customTokenHint" class="muted"></div>
           <label class="checkbox">
             <input id="saveToken" type="checkbox" checked />
-            <span>保存 Token，后续部署可直接复用</span>
+            <span id="saveTokenLabel"></span>
           </label>
         </div>
-        <div id="guestNote" class="note hidden">
-          当前为游客部署模式，发布成功后链接仅保留 24 小时。若需要长期保存和版本更新，建议使用 Token。
-        </div>
+        <div id="guestNote" class="note hidden"></div>
         <div class="row wrap">
-          <button id="deployBtn" class="grow" type="button">开始部署</button>
-          <button id="clearTokenBtn" class="secondary" type="button">清除已保存 Token</button>
+          <button id="deployBtn" class="grow" type="button"></button>
+          <button id="clearTokenBtn" class="secondary" type="button"></button>
         </div>
       </section>
     </div>
 
     <section class="card stack">
-      <h2>部署选项</h2>
+      <h2 id="deployOptionsTitle"></h2>
       <label class="checkbox">
         <input id="useExistingShareUrl" type="checkbox" />
-        <span>如果检测到已有部署记录，则在原链接上创建新版本</span>
+        <span id="reuseExistingShareUrlLabel"></span>
       </label>
-      <div id="deployHint" class="muted">选择文件夹后，插件会自动尝试识别入口文件。</div>
+      <div id="deployHint" class="muted"></div>
     </section>
 
     <section class="card stack">
       <div class="row wrap" style="justify-content: space-between;">
-        <h2>部署结果</h2>
-        <button id="openLastUrlBtn" class="ghost hidden" type="button">打开最近链接</button>
+        <h2 id="resultSectionTitle"></h2>
+        <button id="openLastUrlBtn" class="ghost hidden" type="button"></button>
       </div>
-      <div id="resultEmpty" class="muted">部署完成后，这里会显示分享链接。</div>
+      <div id="resultEmpty" class="muted"></div>
       <div id="resultBlock" class="hidden stack">
         <div id="resultUrl" class="result-link"></div>
         <div class="row wrap">
-          <button id="copyUrlBtn" type="button">复制链接</button>
-          <button id="openUrlBtn" class="secondary" type="button">打开链接</button>
+          <button id="copyUrlBtn" type="button"></button>
+          <button id="openUrlBtn" class="secondary" type="button"></button>
         </div>
       </div>
     </section>
 
-    <div class="footer">支持 VS Code、Cursor、Trae 等基于 VS Code 扩展生态的编辑器。</div>
+    <div id="footerText" class="footer"></div>
   </div>
 
   <div id="confirmOverlay" class="overlay hidden" aria-hidden="true">
@@ -842,14 +932,14 @@ class HtmlToLinkPanel {
       <div class="modal-head">
         <div id="confirmIcon" class="modal-icon">!</div>
         <div class="modal-copy">
-          <div id="confirmTitle" class="modal-title">确认游客部署</div>
-          <div id="confirmText" class="modal-text">当前将以游客身份发布，适合快速试用，但链接只会保留 24 小时。</div>
+          <div id="confirmTitle" class="modal-title"></div>
+          <div id="confirmText" class="modal-text"></div>
         </div>
       </div>
       <ul id="confirmList" class="modal-list"></ul>
       <div class="modal-actions">
-        <button id="confirmCancelBtn" class="ghost" type="button">取消</button>
-        <button id="confirmActionBtn" class="button-warning" type="button">继续</button>
+        <button id="confirmCancelBtn" class="ghost" type="button"></button>
+        <button id="confirmActionBtn" class="button-warning" type="button"></button>
       </div>
     </div>
   </div>
@@ -859,46 +949,24 @@ class HtmlToLinkPanel {
       <div class="modal-head">
         <div class="modal-icon">?</div>
         <div class="modal-copy">
-          <div id="tokenHelpTitle" class="modal-title">如何获取 Token</div>
-          <div class="modal-text">
-            使用 Token 部署后，链接可长期保留，也方便后续继续更新版本。
-          </div>
+          <div id="tokenHelpTitle" class="modal-title"></div>
+          <div id="tokenHelpText" class="modal-text"></div>
         </div>
       </div>
-      <ol class="step-list">
-        <li>
-          <span class="step-index">1</span>
-          <div class="step-copy">
-            <strong>先注册账号</strong>
-            <span>打开 https://htmlto.link/ ，先完成注册或登录。</span>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">2</span>
-          <div class="step-copy">
-            <strong>进入设置页</strong>
-            <span>登录后访问 https://htmlto.link/settings 。</span>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">3</span>
-          <div class="step-copy">
-            <strong>复制 Token 回来粘贴</strong>
-            <span>在设置页找到 API Token，复制后回到插件输入即可。</span>
-          </div>
-        </li>
-      </ol>
+      <ol id="tokenHelpList" class="step-list"></ol>
       <div class="modal-actions">
-        <button id="tokenHelpCloseBtn" class="ghost" type="button">我知道了</button>
-        <button id="openHomeBtn" class="secondary" type="button">打开首页注册</button>
-        <button id="openSettingsBtn" type="button">打开设置页</button>
+        <button id="tokenHelpCloseBtn" class="ghost" type="button"></button>
+        <button id="openHomeBtn" class="secondary" type="button"></button>
+        <button id="openSettingsBtn" type="button"></button>
       </div>
     </div>
   </div>
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    const localizedMessages = ${localizedMessages};
     const state = {
+      uiLocale: 'zh-CN',
       folderPath: '',
       entryFile: '',
       entryCandidates: [],
@@ -916,18 +984,30 @@ class HtmlToLinkPanel {
       customToken: ''
     };
 
+    const heroTitle = document.getElementById('heroTitle');
+    const heroDescription = document.getElementById('heroDescription');
+    const localeLabel = document.getElementById('localeLabel');
+    const localeZhBtn = document.getElementById('localeZhBtn');
+    const localeEnBtn = document.getElementById('localeEnBtn');
+    const folderSectionTitle = document.getElementById('folderSectionTitle');
+    const savedTokenBadge = document.getElementById('savedTokenBadge');
+    const folderLabel = document.getElementById('folderLabel');
     const folderPathInput = document.getElementById('folderPath');
+    const chooseFolderBtn = document.getElementById('chooseFolderBtn');
+    const entryFileLabel = document.getElementById('entryFileLabel');
     const entryFileInput = document.getElementById('entryFile');
     const entryFileSelect = document.getElementById('entryFileSelect');
     const entryFileHint = document.getElementById('entryFileHint');
-    const savedTokenBadge = document.getElementById('savedTokenBadge');
+    const previousShareBlock = document.getElementById('previousShareBlock');
+    const identitySectionTitle = document.getElementById('identitySectionTitle');
     const savedMode = document.getElementById('savedMode');
     const customTokenBlock = document.getElementById('customTokenBlock');
     const customTokenInput = document.getElementById('customToken');
     const howToGetTokenBtn = document.getElementById('howToGetTokenBtn');
+    const howToGetTokenText = document.getElementById('howToGetTokenText');
     const saveTokenCheckbox = document.getElementById('saveToken');
+    const saveTokenLabel = document.getElementById('saveTokenLabel');
     const guestNote = document.getElementById('guestNote');
-    const previousShareBlock = document.getElementById('previousShareBlock');
     const useExistingShareUrl = document.getElementById('useExistingShareUrl');
     const resultEmpty = document.getElementById('resultEmpty');
     const resultBlock = document.getElementById('resultBlock');
@@ -944,12 +1024,108 @@ class HtmlToLinkPanel {
     const confirmCancelBtn = document.getElementById('confirmCancelBtn');
     const confirmActionBtn = document.getElementById('confirmActionBtn');
     const tokenHelpOverlay = document.getElementById('tokenHelpOverlay');
+    const tokenHelpTitle = document.getElementById('tokenHelpTitle');
+    const tokenHelpText = document.getElementById('tokenHelpText');
+    const tokenHelpList = document.getElementById('tokenHelpList');
     const tokenHelpCloseBtn = document.getElementById('tokenHelpCloseBtn');
     const openHomeBtn = document.getElementById('openHomeBtn');
     const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const deployBtn = document.getElementById('deployBtn');
+    const clearTokenBtn = document.getElementById('clearTokenBtn');
+    const deployOptionsTitle = document.getElementById('deployOptionsTitle');
+    const reuseExistingShareUrlLabel = document.getElementById('reuseExistingShareUrlLabel');
+    const resultSectionTitle = document.getElementById('resultSectionTitle');
+    const copyUrlBtn = document.getElementById('copyUrlBtn');
+    const openUrlBtn = document.getElementById('openUrlBtn');
+    const footerText = document.getElementById('footerText');
+    const savedModeTitle = document.getElementById('savedModeTitle');
+    const savedModeDesc = document.getElementById('savedModeDesc');
+    const customModeTitle = document.getElementById('customModeTitle');
+    const customModeDesc = document.getElementById('customModeDesc');
+    const guestModeTitle = document.getElementById('guestModeTitle');
+    const guestModeDesc = document.getElementById('guestModeDesc');
+    const tokenLabel = document.getElementById('tokenLabel');
+    const customTokenHint = document.getElementById('customTokenHint');
     let confirmAction = null;
 
+    function copy() {
+      return localizedMessages[state.uiLocale].panel;
+    }
+
+    function format(template, values) {
+      return Object.entries(values).reduce((result, [key, value]) => {
+        return result.replace(new RegExp('\\\\{' + key + '\\\\}', 'g'), String(value));
+      }, template);
+    }
+
+    function renderModeOptions(currentCopy) {
+      savedModeTitle.textContent = currentCopy.savedModeTitle;
+      savedModeDesc.textContent = currentCopy.savedModeDesc;
+      customModeTitle.textContent = currentCopy.customModeTitle;
+      customModeDesc.textContent = currentCopy.customModeDesc;
+      guestModeTitle.textContent = currentCopy.guestModeTitle;
+      guestModeDesc.textContent = currentCopy.guestModeDesc;
+    }
+
+    function renderTokenHelp(currentCopy) {
+      tokenHelpTitle.textContent = currentCopy.tokenHelpTitle;
+      tokenHelpText.textContent = currentCopy.tokenHelpText;
+      tokenHelpList.innerHTML = '';
+      currentCopy.tokenHelpSteps.forEach((step, index) => {
+        const li = document.createElement('li');
+        li.innerHTML =
+          '<span class="step-index">' + (index + 1) + '</span>' +
+          '<div class="step-copy">' +
+          '<strong></strong>' +
+          '<span></span>' +
+          '</div>';
+        li.querySelector('strong').textContent = step.title;
+        li.querySelector('span:last-child').textContent = step.text;
+        tokenHelpList.appendChild(li);
+      });
+      tokenHelpCloseBtn.textContent = currentCopy.tokenHelpClose;
+      openHomeBtn.textContent = currentCopy.tokenHelpOpenHome;
+      openSettingsBtn.textContent = currentCopy.tokenHelpOpenSettings;
+    }
+
     function render() {
+      const currentCopy = copy();
+      document.documentElement.lang = state.uiLocale === 'zh-CN' ? 'zh-CN' : 'en';
+
+      heroTitle.textContent = currentCopy.heroTitle;
+      heroDescription.textContent = currentCopy.heroDescription;
+      localeLabel.textContent = currentCopy.languageSwitcherLabel;
+      localeZhBtn.classList.toggle('active', state.uiLocale === 'zh-CN');
+      localeEnBtn.classList.toggle('active', state.uiLocale === 'en');
+
+      folderSectionTitle.textContent = currentCopy.folderSectionTitle;
+      savedTokenBadge.textContent = state.hasSavedToken ? currentCopy.savedTokenBadge : currentCopy.emptyTokenBadge;
+      folderLabel.textContent = currentCopy.folderLabel;
+      folderPathInput.placeholder = currentCopy.folderPlaceholder;
+      chooseFolderBtn.textContent = currentCopy.chooseFolder;
+      entryFileLabel.textContent = currentCopy.entryFileLabel;
+      entryFileInput.placeholder = currentCopy.entryFilePlaceholder;
+      identitySectionTitle.textContent = currentCopy.identitySectionTitle;
+      tokenLabel.textContent = currentCopy.tokenLabel;
+      customTokenInput.placeholder = currentCopy.tokenPlaceholder;
+      howToGetTokenText.textContent = currentCopy.howToGetToken;
+      customTokenHint.textContent = currentCopy.customTokenHint;
+      saveTokenLabel.textContent = currentCopy.saveTokenLabel;
+      guestNote.textContent = currentCopy.guestNote;
+      deployBtn.textContent = currentCopy.deploy;
+      clearTokenBtn.textContent = currentCopy.clearSavedToken;
+      deployOptionsTitle.textContent = currentCopy.deployOptionsTitle;
+      reuseExistingShareUrlLabel.textContent = currentCopy.reuseExistingDeployment;
+      resultSectionTitle.textContent = currentCopy.resultSectionTitle;
+      openLastUrlBtn.textContent = currentCopy.openLastLink;
+      resultEmpty.textContent = currentCopy.resultEmpty;
+      copyUrlBtn.textContent = currentCopy.copyLink;
+      openUrlBtn.textContent = currentCopy.openLink;
+      footerText.textContent = currentCopy.footer;
+
+      renderModeOptions(currentCopy);
+      renderTokenHelp(currentCopy);
+
       const canReuseExistingShareUrl = getCanReuseExistingShareUrl();
       folderPathInput.value = state.folderPath || '';
       customTokenInput.value = state.customToken || '';
@@ -957,7 +1133,6 @@ class HtmlToLinkPanel {
       useExistingShareUrl.checked = Boolean(state.useExistingShareUrl && state.previousShareUrl);
       useExistingShareUrl.disabled = !canReuseExistingShareUrl;
 
-      savedTokenBadge.textContent = state.hasSavedToken ? '已保存 Token' : '未保存 Token';
       savedMode.classList.toggle('hidden', !state.hasSavedToken);
       customTokenBlock.classList.toggle('hidden', state.tokenMode !== 'custom');
       guestNote.classList.toggle('hidden', state.tokenMode !== 'guest');
@@ -977,11 +1152,11 @@ class HtmlToLinkPanel {
       entryFileInput.value = state.entryFile || '';
 
       if (hasEntryCandidates) {
-        entryFileHint.textContent =
-          '已识别 ' + state.entryCandidates.length + ' 个 HTML 文件，请选择部署入口。';
+        entryFileHint.textContent = format(currentCopy.entryCandidatesHint, {
+          count: state.entryCandidates.length,
+        });
       } else {
-        entryFileHint.textContent =
-          '未自动识别到 HTML 文件，请手动输入相对于文件夹的入口文件路径。';
+        entryFileHint.textContent = currentCopy.entryManualHint;
       }
 
       document.querySelectorAll('[data-mode]').forEach((button) => {
@@ -992,11 +1167,17 @@ class HtmlToLinkPanel {
       if (state.previousShareUrl) {
         previousShareBlock.classList.remove('hidden');
         if (canReuseExistingShareUrl) {
-          previousShareBlock.textContent = '已检测到历史部署记录，可继续更新：' + state.previousShareUrl;
+          previousShareBlock.textContent = format(currentCopy.previousShareReusable, {
+            url: state.previousShareUrl,
+          });
         } else if (state.previousIsTemporary) {
-          previousShareBlock.textContent = '检测到旧的游客部署记录，但缺少 updateToken 或链接已不适合继续更新，本次将默认创建新链接：' + state.previousShareUrl;
+          previousShareBlock.textContent = format(currentCopy.previousShareGuestUnavailable, {
+            url: state.previousShareUrl,
+          });
         } else {
-          previousShareBlock.textContent = '检测到历史部署记录，但当前身份不能直接更新这个链接：' + state.previousShareUrl;
+          previousShareBlock.textContent = format(currentCopy.previousShareIdentityUnavailable, {
+            url: state.previousShareUrl,
+          });
         }
       } else {
         previousShareBlock.classList.add('hidden');
@@ -1019,9 +1200,11 @@ class HtmlToLinkPanel {
       }
 
       if (state.folderPath) {
-        deployHint.textContent = '当前目录：' + state.folderPath;
+        deployHint.textContent = format(currentCopy.currentFolderHint, {
+          folderPath: state.folderPath,
+        });
       } else {
-        deployHint.textContent = '选择文件夹后，插件会自动尝试识别入口文件。';
+        deployHint.textContent = currentCopy.deployHintWithoutFolder;
       }
 
       if (!canReuseExistingShareUrl && state.useExistingShareUrl) {
@@ -1043,17 +1226,18 @@ class HtmlToLinkPanel {
     }
 
     function showToast(intent, text) {
+      const currentCopy = copy();
       const titleMap = {
-        info: '提示',
-        success: '已完成',
-        warning: '请注意',
-        error: '发生错误'
+        info: currentCopy.toastTitleInfo,
+        success: currentCopy.toastTitleSuccess,
+        warning: currentCopy.toastTitleWarning,
+        error: currentCopy.toastTitleError
       };
 
       const toast = document.createElement('div');
       toast.className = 'toast ' + intent;
       toast.innerHTML =
-        '<div class="toast-title">' + (titleMap[intent] || '提示') + '</div>' +
+        '<div class="toast-title">' + (titleMap[intent] || currentCopy.toastTitleInfo) + '</div>' +
         '<div class="toast-text"></div>';
       toast.querySelector('.toast-text').textContent = text;
       toastViewport.appendChild(toast);
@@ -1083,47 +1267,40 @@ class HtmlToLinkPanel {
       tokenHelpOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
     }
 
-    function openGuestConfirm() {
-      confirmAction = 'guestDeploy';
-      confirmDialog.classList.remove('danger');
-      confirmIcon.textContent = '!';
-      confirmTitle.textContent = '确认游客部署';
-      confirmText.textContent = '当前将以游客身份发布，适合快速试用，但链接只会保留 24 小时。';
+    function fillConfirmList(items) {
       confirmList.innerHTML = '';
-      [
-        '部署成功后会立即返回 URL，可直接复制和打开。',
-        '游客链接到期后会失效，不能长期保留版本记录。',
-        '如果需要长期管理和重复更新，建议改用 Token 部署。'
-      ].forEach((item) => {
+      items.forEach((item) => {
         const li = document.createElement('li');
         li.textContent = item;
         confirmList.appendChild(li);
       });
-      confirmCancelBtn.textContent = '先去填 Token';
-      confirmActionBtn.textContent = '继续游客部署';
+    }
+
+    function openGuestConfirm() {
+      const currentCopy = copy();
+      confirmAction = 'guestDeploy';
+      confirmDialog.classList.remove('danger');
+      confirmIcon.textContent = '!';
+      confirmTitle.textContent = currentCopy.guestConfirmTitle;
+      confirmText.textContent = currentCopy.guestConfirmText;
+      fillConfirmList(currentCopy.guestConfirmList);
+      confirmCancelBtn.textContent = currentCopy.guestConfirmCancel;
+      confirmActionBtn.textContent = currentCopy.guestConfirmAction;
       confirmActionBtn.classList.remove('button-danger');
       confirmActionBtn.classList.add('button-warning');
       setConfirmVisible(true);
     }
 
     function openClearTokenConfirm() {
+      const currentCopy = copy();
       confirmAction = 'clearToken';
       confirmDialog.classList.add('danger');
       confirmIcon.textContent = '×';
-      confirmTitle.textContent = '确认清除 Token';
-      confirmText.textContent = '这会删除当前编辑器里保存的 HTML to Link Token，之后将不能直接复用登录身份部署。';
-      confirmList.innerHTML = '';
-      [
-        '清除后不会影响已经生成的链接。',
-        '后续仍可重新输入 Token 并再次保存。',
-        '如果你只是想临时试用，可以直接切换到游客部署。'
-      ].forEach((item) => {
-        const li = document.createElement('li');
-        li.textContent = item;
-        confirmList.appendChild(li);
-      });
-      confirmCancelBtn.textContent = '取消';
-      confirmActionBtn.textContent = '确认清除';
+      confirmTitle.textContent = currentCopy.clearTokenTitle;
+      confirmText.textContent = currentCopy.clearTokenText;
+      fillConfirmList(currentCopy.clearTokenList);
+      confirmCancelBtn.textContent = currentCopy.clearTokenCancel;
+      confirmActionBtn.textContent = currentCopy.clearTokenAction;
       confirmActionBtn.classList.remove('button-warning');
       confirmActionBtn.classList.add('button-danger');
       setConfirmVisible(true);
@@ -1143,7 +1320,15 @@ class HtmlToLinkPanel {
       });
     }
 
-    document.getElementById('chooseFolderBtn').addEventListener('click', () => {
+    localeZhBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'setLocale', locale: 'zh-CN' });
+    });
+
+    localeEnBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'setLocale', locale: 'en' });
+    });
+
+    chooseFolderBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'chooseFolder' });
     });
 
@@ -1182,7 +1367,7 @@ class HtmlToLinkPanel {
       state.useExistingShareUrl = event.target.checked;
     });
 
-    document.getElementById('deployBtn').addEventListener('click', () => {
+    deployBtn.addEventListener('click', () => {
       if (state.tokenMode === 'guest') {
         openGuestConfirm();
         return;
@@ -1246,18 +1431,18 @@ class HtmlToLinkPanel {
       }
     });
 
-    document.getElementById('clearTokenBtn').addEventListener('click', () => {
+    clearTokenBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'clearToken' });
     });
 
-    document.getElementById('copyUrlBtn').addEventListener('click', () => {
+    copyUrlBtn.addEventListener('click', () => {
       const url = state.lastResultUrl || state.lastDeployUrl;
       if (url) {
         vscode.postMessage({ type: 'copyUrl', url });
       }
     });
 
-    document.getElementById('openUrlBtn').addEventListener('click', () => {
+    openUrlBtn.addEventListener('click', () => {
       const url = state.lastResultUrl || state.lastDeployUrl;
       if (url) {
         vscode.postMessage({ type: 'openUrl', url });

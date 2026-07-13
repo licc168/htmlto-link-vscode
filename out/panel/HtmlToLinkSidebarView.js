@@ -37,19 +37,22 @@ exports.HtmlToLinkSidebarViewProvider = void 0;
 const vscode = __importStar(require("vscode"));
 const tokenStore_1 = require("../core/config/tokenStore");
 const deploymentState_1 = require("../core/deploy/deploymentState");
+const i18n_1 = require("./i18n");
 const sidebarStateEvents_1 = require("./sidebarStateEvents");
 class HtmlToLinkSidebarViewProvider {
     context;
     static viewType = 'htmlToLink.sidebarView';
     view;
+    locale = 'zh-CN';
     constructor(context) {
         this.context = context;
         this.context.subscriptions.push((0, sidebarStateEvents_1.onSidebarStateChanged)(() => {
-            void this.postState();
+            void this.syncLocaleAndPostState();
         }));
     }
-    resolveWebviewView(webviewView) {
+    async resolveWebviewView(webviewView) {
         this.view = webviewView;
+        this.locale = await (0, i18n_1.getPreferredUiLocale)(this.context);
         webviewView.webview.options = {
             enableScripts: true,
         };
@@ -61,7 +64,7 @@ class HtmlToLinkSidebarViewProvider {
         });
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
-                void this.postState();
+                void this.syncLocaleAndPostState();
             }
         });
         webviewView.webview.onDidReceiveMessage(async (message) => {
@@ -69,14 +72,23 @@ class HtmlToLinkSidebarViewProvider {
                 case 'ready':
                     await this.postState();
                     break;
+                case 'setLocale':
+                    if ((0, i18n_1.isUiLocale)(message.locale)) {
+                        this.locale = message.locale;
+                        await (0, i18n_1.setPreferredUiLocale)(this.context, message.locale);
+                        (0, sidebarStateEvents_1.notifySidebarStateChanged)();
+                    }
+                    break;
                 case 'openPanel':
                     await vscode.commands.executeCommand('htmlToLink.openPanel');
                     break;
-                case 'openRecentFolder':
-                    if ((0, deploymentState_1.getLastUsedFolder)(this.context)) {
-                        await vscode.commands.executeCommand('htmlToLink.openPanel', vscode.Uri.file((0, deploymentState_1.getLastUsedFolder)(this.context)));
+                case 'openRecentFolder': {
+                    const folderPath = (0, deploymentState_1.getLastUsedFolder)(this.context);
+                    if (folderPath) {
+                        await vscode.commands.executeCommand('htmlToLink.openPanel', vscode.Uri.file(folderPath));
                     }
                     break;
+                }
                 case 'deployFolder':
                     await vscode.commands.executeCommand('htmlToLink.deployFolder');
                     break;
@@ -94,11 +106,16 @@ class HtmlToLinkSidebarViewProvider {
             await this.postState();
         });
     }
+    async syncLocaleAndPostState() {
+        this.locale = await (0, i18n_1.getPreferredUiLocale)(this.context);
+        await this.postState();
+    }
     async postState() {
         if (!this.view) {
             return;
         }
         const state = {
+            uiLocale: this.locale,
             hasSavedToken: Boolean(await (0, tokenStore_1.getSavedToken)(this.context)),
             lastDeployUrl: (0, deploymentState_1.getLastDeployedUrl)(this.context),
             lastFolderPath: (0, deploymentState_1.getLastUsedFolder)(this.context),
@@ -110,8 +127,9 @@ class HtmlToLinkSidebarViewProvider {
     }
     getHtml(webview) {
         const nonce = getNonce();
+        const localizedMessages = JSON.stringify(i18n_1.messages);
         return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta
@@ -150,17 +168,52 @@ class HtmlToLinkSidebarViewProvider {
       background:
         radial-gradient(circle at top right, color-mix(in srgb, var(--vscode-button-background) 24%, transparent), transparent 42%),
         linear-gradient(180deg, color-mix(in srgb, var(--vscode-editorWidget-background) 96%, transparent), color-mix(in srgb, var(--vscode-sideBar-background) 92%, transparent));
+      display: grid;
+      gap: 14px;
     }
-    .hero h1 {
+    .hero-copy h1 {
       margin: 0 0 8px;
       font-size: 18px;
       line-height: 1.3;
     }
-    .hero p {
+    .hero-copy p {
       margin: 0;
       color: var(--vscode-descriptionForeground);
       font-size: 12px;
       line-height: 1.7;
+    }
+    .locale-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .locale-label {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+    }
+    .locale-switch {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
+      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
+    }
+    .locale-switch button {
+      width: auto;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: transparent;
+      border: 0;
+      color: var(--vscode-descriptionForeground);
+      font-weight: 700;
+    }
+    .locale-switch button.active {
+      color: var(--vscode-button-foreground);
+      background: var(--vscode-button-background);
     }
     .row {
       display: flex;
@@ -241,61 +294,103 @@ class HtmlToLinkSidebarViewProvider {
 <body>
   <div class="app">
     <section class="hero">
-      <h1>静态网站一键发布</h1>
-      <p>左侧固定入口。适合随时打开完整发布面板、选择文件夹、配置 Token，以及快速回到最近发布链接。</p>
+      <div class="locale-row">
+        <span id="localeLabel" class="locale-label"></span>
+        <div class="locale-switch">
+          <button id="localeZhBtn" type="button">中文</button>
+          <button id="localeEnBtn" type="button">EN</button>
+        </div>
+      </div>
+      <div class="hero-copy">
+        <h1 id="headerTitle"></h1>
+        <p id="headerDescription"></p>
+      </div>
     </section>
 
     <section class="card">
       <div class="row">
-        <span id="tokenBadge" class="badge">未保存 Token</span>
-        <span class="badge">固定入口</span>
+        <span id="tokenBadge" class="badge"></span>
+        <span id="fixedEntryBadge" class="badge"></span>
       </div>
       <div id="modeStatus" class="status">
-        <strong>当前推荐：游客快速发布</strong>
-        <div class="muted">未检测到已保存 Token，适合临时分享。需要长期更新链接时可先配置 Token。</div>
+        <strong id="modeStatusTitle"></strong>
+        <div id="modeStatusDesc" class="muted"></div>
       </div>
-      <button id="openPanelBtn" type="button">打开完整发布面板</button>
-      <button id="deployFolderBtn" class="secondary" type="button">选择文件夹并发布</button>
-      <button id="setTokenBtn" class="ghost" type="button">打开 Token 设置</button>
+      <button id="openPanelBtn" type="button"></button>
+      <button id="deployFolderBtn" class="secondary" type="button"></button>
+      <button id="setTokenBtn" class="ghost" type="button"></button>
     </section>
 
     <section class="card">
-      <h2>最近项目目录</h2>
-      <div id="lastFolderEmpty" class="muted">还没有最近使用目录。你可以先选择一个静态站点文件夹。</div>
+      <h2 id="recentFolderTitle"></h2>
+      <div id="lastFolderEmpty" class="muted"></div>
       <div id="lastFolderValue" class="url" hidden></div>
-      <button id="openRecentFolderBtn" class="secondary" type="button" disabled>继续发布这个目录</button>
+      <button id="openRecentFolderBtn" class="secondary" type="button" disabled></button>
     </section>
 
     <section class="card">
-      <h2>最近发布链接</h2>
-      <div id="lastUrlEmpty" class="muted">还没有最近发布记录。完成一次部署后，这里会提供快速打开入口。</div>
+      <h2 id="recentLinkTitle"></h2>
+      <div id="lastUrlEmpty" class="muted"></div>
       <div id="lastUrlValue" class="url" hidden></div>
-      <button id="openLastUrlBtn" class="ghost" type="button" disabled>打开最近链接</button>
+      <button id="openLastUrlBtn" class="ghost" type="button" disabled></button>
     </section>
   </div>
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    const localizedMessages = ${localizedMessages};
     const state = {
+      uiLocale: 'zh-CN',
       hasSavedToken: false,
       lastDeployUrl: '',
       lastFolderPath: ''
     };
 
+    const localeLabel = document.getElementById('localeLabel');
+    const localeZhBtn = document.getElementById('localeZhBtn');
+    const localeEnBtn = document.getElementById('localeEnBtn');
+    const headerTitle = document.getElementById('headerTitle');
+    const headerDescription = document.getElementById('headerDescription');
     const tokenBadge = document.getElementById('tokenBadge');
-    const modeStatus = document.getElementById('modeStatus');
+    const fixedEntryBadge = document.getElementById('fixedEntryBadge');
+    const modeStatusTitle = document.getElementById('modeStatusTitle');
+    const modeStatusDesc = document.getElementById('modeStatusDesc');
+    const openPanelBtn = document.getElementById('openPanelBtn');
+    const deployFolderBtn = document.getElementById('deployFolderBtn');
+    const setTokenBtn = document.getElementById('setTokenBtn');
+    const recentFolderTitle = document.getElementById('recentFolderTitle');
     const lastFolderEmpty = document.getElementById('lastFolderEmpty');
     const lastFolderValue = document.getElementById('lastFolderValue');
     const openRecentFolderBtn = document.getElementById('openRecentFolderBtn');
+    const recentLinkTitle = document.getElementById('recentLinkTitle');
     const lastUrlEmpty = document.getElementById('lastUrlEmpty');
     const lastUrlValue = document.getElementById('lastUrlValue');
     const openLastUrlBtn = document.getElementById('openLastUrlBtn');
 
+    function getCopy() {
+      return localizedMessages[state.uiLocale].sidebar;
+    }
+
     function render() {
-      tokenBadge.textContent = state.hasSavedToken ? '已保存 Token' : '未保存 Token';
-      modeStatus.innerHTML = state.hasSavedToken
-        ? '<strong>当前推荐：使用已保存 Token 发布</strong><div class="muted">适合长期保留链接，后续可继续在原链接上更新版本。</div>'
-        : '<strong>当前推荐：游客快速发布</strong><div class="muted">未检测到已保存 Token，适合临时分享。需要长期更新链接时可先配置 Token。</div>';
+      const copy = getCopy();
+      localeLabel.textContent = localizedMessages[state.uiLocale].panel.languageSwitcherLabel;
+      localeZhBtn.classList.toggle('active', state.uiLocale === 'zh-CN');
+      localeEnBtn.classList.toggle('active', state.uiLocale === 'en');
+      headerTitle.textContent = copy.headerTitle;
+      headerDescription.textContent = copy.headerDescription;
+      tokenBadge.textContent = state.hasSavedToken ? copy.savedTokenBadge : copy.emptyTokenBadge;
+      fixedEntryBadge.textContent = copy.fixedEntryBadge;
+      modeStatusTitle.textContent = state.hasSavedToken ? copy.recommendedSavedTitle : copy.recommendedGuestTitle;
+      modeStatusDesc.textContent = state.hasSavedToken ? copy.recommendedSavedDesc : copy.recommendedGuestDesc;
+      openPanelBtn.textContent = copy.openPanel;
+      deployFolderBtn.textContent = copy.deployFolder;
+      setTokenBtn.textContent = copy.tokenSettings;
+      recentFolderTitle.textContent = copy.recentFolderTitle;
+      lastFolderEmpty.textContent = copy.recentFolderEmpty;
+      openRecentFolderBtn.textContent = copy.continueFolder;
+      recentLinkTitle.textContent = copy.recentLinkTitle;
+      lastUrlEmpty.textContent = copy.recentLinkEmpty;
+      openLastUrlBtn.textContent = copy.openRecentLink;
 
       if (state.lastFolderPath) {
         lastFolderEmpty.hidden = true;
@@ -322,11 +417,19 @@ class HtmlToLinkSidebarViewProvider {
       }
     }
 
-    document.getElementById('openPanelBtn').addEventListener('click', () => {
+    localeZhBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'setLocale', locale: 'zh-CN' });
+    });
+
+    localeEnBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'setLocale', locale: 'en' });
+    });
+
+    openPanelBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'openPanel' });
     });
 
-    document.getElementById('deployFolderBtn').addEventListener('click', () => {
+    deployFolderBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'deployFolder' });
     });
 
@@ -336,7 +439,7 @@ class HtmlToLinkSidebarViewProvider {
       }
     });
 
-    document.getElementById('setTokenBtn').addEventListener('click', () => {
+    setTokenBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'setToken' });
     });
 
