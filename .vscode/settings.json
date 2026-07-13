@@ -1,0 +1,18 @@
+{
+  "explorer.excludeGitIgnore": true,
+  "files.exclude": {
+    "**/.trae": true,
+    "**/node_modules": true,
+    "**/out": true
+  },
+  "search.exclude": {
+    "**/.trae": true,
+    "**/node_modules": true,
+    "**/out": true
+  },
+  "files.watcherExclude": {
+    "**/.trae/**": true,
+    "**/node_modules/**": true,
+    "**/out/**": true
+  }
+}
