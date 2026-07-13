@@ -1,8 +1,8 @@
 {
   "name": "htmlto-link-vscode",
-  "displayName": "Quick Static Site Publish",
-  "description": "一键发布本地静态网站文件夹到 htmlto.link，自动识别入口 HTML，支持游客模式、Token 发布，并立即返回公开访问链接。",
-  "version": "0.1.2",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.1.3",
   "publisher": "licc",
   "private": true,
   "engines": {
@@ -23,32 +23,32 @@
     "commands": [
       {
         "command": "htmlToLink.openPanel",
-        "category": "静态网站一键发布",
-        "title": "打开发布面板",
+        "category": "%commandCategory%",
+        "title": "%command.openPanel.title%",
         "icon": "$(rocket)"
       },
       {
         "command": "htmlToLink.deployFolder",
-        "category": "静态网站一键发布",
-        "title": "选择文件夹并发布",
+        "category": "%commandCategory%",
+        "title": "%command.deployFolder.title%",
         "icon": "$(cloud-upload)"
       },
       {
         "command": "htmlToLink.setToken",
-        "category": "静态网站一键发布",
-        "title": "打开 Token 设置",
+        "category": "%commandCategory%",
+        "title": "%command.setToken.title%",
         "icon": "$(key)"
       },
       {
         "command": "htmlToLink.clearToken",
-        "category": "静态网站一键发布",
-        "title": "清除已保存 Token",
+        "category": "%commandCategory%",
+        "title": "%command.clearToken.title%",
         "icon": "$(trash)"
       },
       {
         "command": "htmlToLink.openLastDeployUrl",
-        "category": "静态网站一键发布",
-        "title": "打开最近发布链接",
+        "category": "%commandCategory%",
+        "title": "%command.openLastDeployUrl.title%",
         "icon": "$(link-external)"
       }
     ],
@@ -62,22 +62,22 @@
       ]
     },
     "configuration": {
-      "title": "静态网站一键发布",
+      "title": "%configuration.title%",
       "properties": {
         "htmlToLink.apiBaseUrl": {
           "type": "string",
           "default": "https://htmlto.link",
-          "description": "htmlto.link 部署接口的基础地址。"
+          "description": "%configuration.apiBaseUrl.description%"
         },
         "htmlToLink.autoCopyUrl": {
           "type": "boolean",
           "default": true,
-          "description": "部署成功后自动复制链接。"
+          "description": "%configuration.autoCopyUrl.description%"
         },
         "htmlToLink.defaultEntryFile": {
           "type": "string",
           "default": "index.html",
-          "description": "自动识别入口文件时优先使用的文件名。"
+          "description": "%configuration.defaultEntryFile.description%"
         },
         "htmlToLink.excludePatterns": {
           "type": "array",
@@ -91,7 +91,7 @@
             "dist/cache/**",
             ".turbo/**"
           ],
-          "description": "打包上传时默认排除的目录或文件模式。"
+          "description": "%configuration.excludePatterns.description%"
         }
       }
     }

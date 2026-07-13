@@ -1,0 +1,15 @@
+{
+  "displayName": "Quick Static Site Publish",
+  "description": "One-click publish local static site folders to htmlto.link with automatic entry HTML detection, guest mode, token publishing, and instant public URLs.",
+  "commandCategory": "Quick Static Site Publish",
+  "command.openPanel.title": "Open Publish Panel",
+  "command.deployFolder.title": "Select Folder and Publish",
+  "command.setToken.title": "Open Token Settings",
+  "command.clearToken.title": "Clear Saved Token",
+  "command.openLastDeployUrl.title": "Open Last Published Link",
+  "configuration.title": "Quick Static Site Publish",
+  "configuration.apiBaseUrl.description": "Base URL of the htmlto.link deployment API.",
+  "configuration.autoCopyUrl.description": "Automatically copy the public URL after a successful publish.",
+  "configuration.defaultEntryFile.description": "Preferred file name when automatically detecting the entry HTML file.",
+  "configuration.excludePatterns.description": "Default file or directory patterns excluded when packaging and uploading."
+}
