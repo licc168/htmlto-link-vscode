@@ -42,6 +42,7 @@ const deploymentState_1 = require("../core/deploy/deploymentState");
 const performDeployment_1 = require("../core/deploy/performDeployment");
 const notifications_1 = require("../utils/notifications");
 const openExternal_1 = require("../utils/openExternal");
+const sidebarStateEvents_1 = require("./sidebarStateEvents");
 class HtmlToLinkPanel {
     static currentPanel;
     panel;
@@ -156,6 +157,7 @@ class HtmlToLinkPanel {
         }
         this.state.canReuseExistingShareUrl = this.canReuseExistingDeployment(this.state.tokenMode);
         this.postState();
+        (0, sidebarStateEvents_1.notifySidebarStateChanged)();
     }
     async loadFolder(folderPath) {
         const defaultEntry = (0, detectEntryFile_1.getDefaultEntryFile)();
@@ -176,6 +178,7 @@ class HtmlToLinkPanel {
             metadata?.temporary ?? isTemporaryShareUrl(metadata?.shareUrl);
         this.state.previousExpiresAt = metadata?.expiresAt;
         this.state.lastResultUrl = metadata?.shareUrl || this.state.lastResultUrl;
+        await (0, deploymentState_1.setLastUsedFolder)(this.context, folderPath);
         await this.refreshState();
     }
     async handleDeploy(payload) {
@@ -225,6 +228,7 @@ class HtmlToLinkPanel {
             if (getAutoCopyUrl()) {
                 await (0, notifications_1.copyToClipboard)(result.shareUrl);
             }
+            await (0, deploymentState_1.setLastUsedFolder)(this.context, folderPath);
             this.state.folderPath = folderPath;
             this.state.entryFile = entryFile;
             this.state.previousShareUrl = result.shareUrl;

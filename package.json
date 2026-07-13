@@ -2,7 +2,8 @@
   "name": "htmlto-link-vscode",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.3",
+  "icon": "media/icon.png",
+  "version": "0.1.4",
   "publisher": "licc",
   "private": true,
   "engines": {
@@ -16,7 +17,8 @@
     "onCommand:htmlToLink.deployFolder",
     "onCommand:htmlToLink.setToken",
     "onCommand:htmlToLink.clearToken",
-    "onCommand:htmlToLink.openLastDeployUrl"
+    "onCommand:htmlToLink.openLastDeployUrl",
+    "onView:htmlToLink.sidebarView"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -52,7 +54,31 @@
         "icon": "$(link-external)"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "htmlToLink",
+          "title": "%viewContainer.title%",
+          "icon": "media/activity-bar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "htmlToLink": [
+        {
+          "id": "htmlToLink.sidebarView",
+          "name": "%view.sidebar.name%"
+        }
+      ]
+    },
     "menus": {
+      "view/title": [
+        {
+          "command": "htmlToLink.openPanel",
+          "when": "view == htmlToLink.sidebarView",
+          "group": "navigation@1"
+        }
+      ],
       "explorer/context": [
         {
           "command": "htmlToLink.deployFolder",

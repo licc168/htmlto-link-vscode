@@ -7,6 +7,8 @@
   "command.setToken.title": "打开 Token 设置",
   "command.clearToken.title": "清除已保存 Token",
   "command.openLastDeployUrl.title": "打开最近发布链接",
+  "viewContainer.title": "发布",
+  "view.sidebar.name": "快速发布",
   "configuration.title": "静态网站一键发布",
   "configuration.apiBaseUrl.description": "htmlto.link 部署接口的基础地址。",
   "configuration.autoCopyUrl.description": "发布成功后自动复制链接。",

@@ -3,6 +3,7 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 
 const LAST_DEPLOY_URL_KEY = 'htmlToLink.lastDeployUrl'
+const LAST_FOLDER_PATH_KEY = 'htmlToLink.lastFolderPath'
 const DEPLOYMENT_META_FILE = '.htmltolink.json'
 
 export type DeploymentMetadata = {
@@ -44,6 +45,17 @@ export async function setLastDeployedUrl(
 
 export function getLastDeployedUrl(context: vscode.ExtensionContext) {
   return context.globalState.get<string>(LAST_DEPLOY_URL_KEY)
+}
+
+export async function setLastUsedFolder(
+  context: vscode.ExtensionContext,
+  folderPath: string
+) {
+  await context.globalState.update(LAST_FOLDER_PATH_KEY, folderPath)
+}
+
+export function getLastUsedFolder(context: vscode.ExtensionContext) {
+  return context.globalState.get<string>(LAST_FOLDER_PATH_KEY)
 }
 
 function getMetadataFilePath(folderPath: string) {

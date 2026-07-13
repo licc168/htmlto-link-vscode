@@ -12,10 +12,12 @@ import {
 import {
   getDeploymentMetadata,
   getLastDeployedUrl,
+  setLastUsedFolder,
 } from '../core/deploy/deploymentState'
 import { performDeployment } from '../core/deploy/performDeployment'
 import { copyToClipboard } from '../utils/notifications'
 import { openExternalUrl } from '../utils/openExternal'
+import { notifySidebarStateChanged } from './sidebarStateEvents'
 
 type PanelState = {
   folderPath?: string
@@ -222,6 +224,7 @@ export class HtmlToLinkPanel {
     )
 
     this.postState()
+    notifySidebarStateChanged()
   }
 
   private async loadFolder(folderPath: string) {
@@ -248,6 +251,7 @@ export class HtmlToLinkPanel {
       metadata?.temporary ?? isTemporaryShareUrl(metadata?.shareUrl)
     this.state.previousExpiresAt = metadata?.expiresAt
     this.state.lastResultUrl = metadata?.shareUrl || this.state.lastResultUrl
+    await setLastUsedFolder(this.context, folderPath)
 
     await this.refreshState()
   }
@@ -318,6 +322,7 @@ export class HtmlToLinkPanel {
         await copyToClipboard(result.shareUrl)
       }
 
+      await setLastUsedFolder(this.context, folderPath)
       this.state.folderPath = folderPath
       this.state.entryFile = entryFile
       this.state.previousShareUrl = result.shareUrl

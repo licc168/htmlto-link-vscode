@@ -4,9 +4,14 @@ import { createDeployFolderCommand } from './commands/deployFolder'
 import { createSetTokenCommand } from './commands/setToken'
 import { createClearTokenCommand } from './commands/clearToken'
 import { createOpenLastDeployUrlCommand } from './commands/openLastDeployUrl'
+import { HtmlToLinkSidebarViewProvider } from './panel/HtmlToLinkSidebarView'
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      HtmlToLinkSidebarViewProvider.viewType,
+      new HtmlToLinkSidebarViewProvider(context)
+    ),
     vscode.commands.registerCommand(
       'htmlToLink.openPanel',
       createOpenPanelCommand(context)

@@ -7,6 +7,8 @@
   "command.setToken.title": "Open Token Settings",
   "command.clearToken.title": "Clear Saved Token",
   "command.openLastDeployUrl.title": "Open Last Published Link",
+  "viewContainer.title": "Publish",
+  "view.sidebar.name": "Quick Publish",
   "configuration.title": "Quick Static Site Publish",
   "configuration.apiBaseUrl.description": "Base URL of the htmlto.link deployment API.",
   "configuration.autoCopyUrl.description": "Automatically copy the public URL after a successful publish.",

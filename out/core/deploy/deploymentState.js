@@ -37,9 +37,12 @@ exports.getDeploymentMetadata = getDeploymentMetadata;
 exports.saveDeploymentMetadata = saveDeploymentMetadata;
 exports.setLastDeployedUrl = setLastDeployedUrl;
 exports.getLastDeployedUrl = getLastDeployedUrl;
+exports.setLastUsedFolder = setLastUsedFolder;
+exports.getLastUsedFolder = getLastUsedFolder;
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const LAST_DEPLOY_URL_KEY = 'htmlToLink.lastDeployUrl';
+const LAST_FOLDER_PATH_KEY = 'htmlToLink.lastFolderPath';
 const DEPLOYMENT_META_FILE = '.htmltolink.json';
 async function getDeploymentMetadata(folderPath) {
     const filePath = getMetadataFilePath(folderPath);
@@ -60,6 +63,12 @@ async function setLastDeployedUrl(context, url) {
 }
 function getLastDeployedUrl(context) {
     return context.globalState.get(LAST_DEPLOY_URL_KEY);
+}
+async function setLastUsedFolder(context, folderPath) {
+    await context.globalState.update(LAST_FOLDER_PATH_KEY, folderPath);
+}
+function getLastUsedFolder(context) {
+    return context.globalState.get(LAST_FOLDER_PATH_KEY);
 }
 function getMetadataFilePath(folderPath) {
     return path.join(folderPath, DEPLOYMENT_META_FILE);
