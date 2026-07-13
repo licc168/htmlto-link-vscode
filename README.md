@@ -1,66 +1,135 @@
 # Quick Static Site Publish
 
-One-click publish local static site folders from VS Code, Cursor, and Trae to `htmlto.link`. The extension opens a visual publish panel, detects entry HTML files automatically, and returns a public URL right after publishing.
+## 中文说明
 
-一键将本地静态网站文件夹从 VS Code、Cursor、Trae 发布到 `htmlto.link`。插件会打开可视化发布面板，自动识别入口 HTML 文件，并在发布完成后立即返回公开访问链接。
+一键把本地静态网站文件夹发布到 `htmlto.link`，适用于 VS Code、Cursor 和 Trae。
 
-## Overview / 简介
+### 插件界面
 
-- Built for local static websites and frontend demo projects
-- Publish directly from a folder without manually zipping and uploading files
-- Detect root-level HTML files automatically and let users choose the entry file
-- Support both guest publishing and token-based long-term publishing
-- Return a public URL immediately after a successful publish
+![Quick Static Site Publish Chinese UI](https://image.albumshare.cn/hmltolink/vscode/zh_vscode.png)
 
-- 面向本地静态网站和前端演示项目
-- 从文件夹直接发布，不需要手动压缩和上传
-- 自动识别根目录 HTML 文件并让用户选择入口文件
-- 同时支持游客临时发布和 Token 长期发布
-- 发布成功后立即返回公开访问链接
+### 这个插件做什么
 
-## Features / 核心体验
+- 直接发布本地静态网站文件夹，不用手动压缩再上传
+- 自动识别可作为入口的 HTML 文件
+- 支持游客发布，适合快速临时分享
+- 支持 Token 发布，适合重复部署和长期使用
+- 部署完成后立即返回公开访问链接
 
-- Open a visual panel and publish a selected folder with one click
-- List detected HTML entry candidates automatically
-- Use guest mode for quick temporary sharing
-- Save a token for repeated publishing and long-term link management
-- Copy or open the published URL right after deployment
+### 适合场景
 
-- 在可视化面板中选择文件夹并一键发布
-- 自动列出识别到的 HTML 入口候选项
-- 支持游客模式，适合快速临时分享
-- 支持保存 Token，便于重复发布和长期管理链接
-- 发布成功后可直接复制或打开链接
+- 静态 HTML 落地页
+- 前端演示项目和原型
+- 导出的文档站点
+- 需要快速分享的项目预览
 
-## Entry Points / 入口方式
+### 快速开始
 
-- Run `Quick Static Site Publish: Open Publish Panel` from the command palette
-- Right-click a folder in the explorer and publish it directly
-- Complete folder selection, entry HTML selection, token configuration, and result viewing inside the panel
+1. 安装插件。
+2. 打开命令面板，执行 `Quick Static Site Publish: Open Publish Panel`。
+3. 选择本地文件夹。
+4. 确认自动识别到的入口 HTML 文件。
+5. 选择游客发布，或填写你的 Token。
+6. 复制或打开生成的公开链接。
 
-- 在命令面板中执行 `Quick Static Site Publish: Open Publish Panel`
-- 在资源管理器中右键文件夹后可直接发起发布
-- 在面板内统一完成文件夹选择、入口 HTML 选择、Token 配置和发布结果查看
+### 核心能力
 
-## Scope / 当前定位
+- 一键发布文件夹
+- 自动识别入口 HTML
+- 支持游客模式
+- 支持保存 Token
+- 支持复制和打开发布结果
 
-This version focuses on one task only: publishing static sites. It does not include:
+### 入口方式
 
-- Markdown editor
-- Template selection
-- Page preview editor
-- User center capabilities
+- 命令面板：`Quick Static Site Publish: Open Publish Panel`
+- 资源管理器文件夹右键：`Select Folder and Publish`
+- 左侧活动栏视图：`Publish`
 
-当前版本聚焦于“静态网站发布”这一个核心任务，不包含：
+### 命令
 
-- Markdown 编辑器
-- 模板选择
-- 页面预览编辑器
-- 用户中心能力
+- `Quick Static Site Publish: Open Publish Panel`
+- `Quick Static Site Publish: Select Folder and Publish`
+- `Quick Static Site Publish: Open Token Settings`
+- `Quick Static Site Publish: Clear Saved Token`
+- `Quick Static Site Publish: Open Last Published Link`
 
-## Development / 开发
+### 配置项
 
-```bash
-npm install
-npm run build
-```
+- `htmlToLink.apiBaseUrl`：部署接口基础地址
+- `htmlToLink.autoCopyUrl`：发布成功后自动复制链接
+- `htmlToLink.defaultEntryFile`：自动识别入口文件时优先文件名
+- `htmlToLink.excludePatterns`：打包上传时排除的目录和文件模式
+
+### 说明
+
+- 这个插件只聚焦静态网站发布
+- 不包含页面编辑、模板生成或可视化搭建能力
+
+## English
+
+Publish a local static site folder to `htmlto.link` in one click from VS Code, Cursor, or Trae.
+
+### Screenshot
+
+![Quick Static Site Publish English UI](https://image.albumshare.cn/hmltolink/vscode/en_vscode.png)
+
+### What It Does
+
+- Publish a local static site folder without manually zipping and uploading
+- Detect candidate HTML entry files automatically
+- Support guest publishing for quick temporary sharing
+- Support token-based publishing for repeatable and longer-term use
+- Return a public URL immediately after deployment
+
+### Best For
+
+- Static HTML landing pages
+- Frontend demos and prototypes
+- Exported documentation sites
+- Simple project previews for sharing
+
+### Quick Start
+
+1. Install the extension.
+2. Open the command palette and run `Quick Static Site Publish: Open Publish Panel`.
+3. Choose a local folder.
+4. Confirm the detected entry HTML file.
+5. Publish as guest or enter your token.
+6. Copy or open the generated public URL.
+
+### Main Features
+
+- One-click folder publishing
+- Automatic entry HTML detection
+- Guest mode support
+- Saved token support
+- Instant copy and open actions after publishing
+
+### Entry Points
+
+- Command palette: `Quick Static Site Publish: Open Publish Panel`
+- Explorer right click on a folder: `Select Folder and Publish`
+- Activity Bar view: `Publish`
+
+### Commands
+
+- `Quick Static Site Publish: Open Publish Panel`
+- `Quick Static Site Publish: Select Folder and Publish`
+- `Quick Static Site Publish: Open Token Settings`
+- `Quick Static Site Publish: Clear Saved Token`
+- `Quick Static Site Publish: Open Last Published Link`
+
+### Settings
+
+- `htmlToLink.apiBaseUrl`: deployment API base URL
+- `htmlToLink.autoCopyUrl`: automatically copy the public URL after publishing
+- `htmlToLink.defaultEntryFile`: preferred entry file name when auto-detecting HTML
+- `htmlToLink.excludePatterns`: file and directory patterns excluded from packaging
+
+### Notes
+
+- This extension focuses only on static site deployment
+- It does not provide page editing, template generation, or visual page building
+
+

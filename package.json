@@ -3,9 +3,13 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "licc",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/hangzhou_piaoge_ecommerce/htmlto-link-vscode.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
