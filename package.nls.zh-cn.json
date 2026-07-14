@@ -1,6 +1,6 @@
 {
-  "displayName": "HTML 一键部署",
-  "description": "一键把本地 HTML 或静态网站文件夹发布到 htmlto.link。自动识别入口 HTML，支持游客或 Token 部署，发布后立即获得公开链接。",
+  "displayName": "HTML 一键部署 / 静态网站发布",
+  "description": "一键把本地 HTML 文件和静态网站文件夹发布到 htmlto.link。自动识别入口 HTML，支持游客或 Token 部署，发布后立即获得公开链接。",
   "commandCategory": "静态网站一键发布",
   "command.openPanel.title": "打开发布面板",
   "command.deployFolder.title": "选择文件夹并发布",

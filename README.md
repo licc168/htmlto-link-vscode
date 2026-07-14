@@ -1,8 +1,10 @@
-# htmlto.link - Publish Static Sites
+# HTML 一键部署 / Static Site Publish
+
+本插件用于把本地 `HTML` 文件或静态网站文件夹一键发布到 `htmlto.link`，适合静态部署、HTML 发布、落地页分享和前端演示。
 
 ## 中文说明
 
-一键把本地 HTML / 静态网站文件夹发布成可公开访问的链接。
+一键把本地 HTML 文件 / 静态网站文件夹发布成可公开访问的链接。
 
 - 不用手动压缩再上传
 - 自动识别入口 HTML 文件
@@ -79,7 +81,7 @@
 
 ## English
 
-Publish local HTML and static site folders to `htmlto.link` in one click from VS Code, Cursor, or Trae.
+Publish local `HTML` files and static site folders to `htmlto.link` in one click from VS Code, Cursor, or Trae.
 
 - No manual zip and upload
 - Automatic entry HTML detection

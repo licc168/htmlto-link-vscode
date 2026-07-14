@@ -3,7 +3,8 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.6",
+  "version": "0.1.7",
+  "license": "MIT",
   "publisher": "licc",
   "private": true,
   "repository": {
@@ -26,7 +27,20 @@
     "frontend demo",
     "share",
     "preview",
-    "htmlto.link"
+    "htmlto.link",
+    "html deploy",
+    "static deploy",
+    "静态部署",
+    "静态网站",
+    "静态站",
+    "一键发布",
+    "网页部署",
+    "HTML部署",
+    "HTML发布",
+    "网站发布",
+    "前端预览",
+    "前端演示",
+    "落地页发布"
   ],
   "activationEvents": [
     "onCommand:htmlToLink.openPanel",
