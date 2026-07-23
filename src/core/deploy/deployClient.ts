@@ -7,6 +7,7 @@ type DeployArchiveParams = {
   token: string | null
   shareUrl?: string
   updateToken?: string
+  onRetry?: (attempt: number, maxAttempts: number) => void
 }
 
 type DeployApiResponse = {
@@ -24,6 +25,9 @@ type DeployApiResponse = {
   error?: string
 }
 
+const MAX_ATTEMPTS = 3
+const BASE_RETRY_DELAY_MS = 2000
+
 export async function deployArchive(
   params: DeployArchiveParams
 ): Promise<{
@@ -34,6 +38,73 @@ export async function deployArchive(
   expiresAt?: string | null
 }> {
   const endpoint = `${stripTrailingSlash(params.apiBaseUrl)}/api/skill/deploy`
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const formData = buildFormData(params)
+
+    let response: Response
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: params.token
+          ? {
+              Authorization: `Bearer ${params.token}`,
+            }
+          : undefined,
+        body: formData,
+      })
+    } catch (networkError) {
+      lastError =
+        networkError instanceof Error
+          ? networkError
+          : new Error(String(networkError))
+      if (attempt === MAX_ATTEMPTS) {
+        throw lastError
+      }
+      params.onRetry?.(attempt, MAX_ATTEMPTS - 1)
+      await sleep(BASE_RETRY_DELAY_MS * 2 ** (attempt - 1))
+      continue
+    }
+
+    const rawText = await response.text()
+    const data = parseJson<DeployApiResponse>(rawText)
+
+    if (response.ok) {
+      const shareUrl = data?.shareUrl || data?.share_url || data?.url
+
+      if (!shareUrl) {
+        throw new Error('部署成功，但接口未返回分享链接。')
+      }
+
+      return {
+        shareUrl,
+        versionNo: data?.versionNo ?? data?.version_no,
+        updateToken: data?.updateToken ?? data?.update_token,
+        temporary: data?.temporary,
+        expiresAt: data?.expiresAt ?? data?.expires_at,
+      }
+    }
+
+    lastError = new Error(
+      data?.error || data?.message || `部署接口请求失败：HTTP ${response.status}`
+    )
+
+    if (
+      !isRetryable(response.status, lastError.message) ||
+      attempt === MAX_ATTEMPTS
+    ) {
+      throw lastError
+    }
+
+    params.onRetry?.(attempt, MAX_ATTEMPTS - 1)
+    await sleep(BASE_RETRY_DELAY_MS * 2 ** (attempt - 1))
+  }
+
+  throw lastError ?? new Error('部署请求失败。')
+}
+
+function buildFormData(params: DeployArchiveParams) {
   const formData = new FormData()
 
   formData.append(
@@ -52,38 +123,20 @@ export async function deployArchive(
     formData.append('update_token', params.updateToken)
   }
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: params.token
-      ? {
-          Authorization: `Bearer ${params.token}`,
-        }
-      : undefined,
-    body: formData,
-  })
+  return formData
+}
 
-  const rawText = await response.text()
-  const data = parseJson<DeployApiResponse>(rawText)
-
-  if (!response.ok) {
-    throw new Error(
-      data?.error || data?.message || `部署接口请求失败：HTTP ${response.status}`
-    )
+function isRetryable(status: number, message: string) {
+  if (status === 408 || status === 429 || status >= 500) {
+    return true
   }
+  return /unavailable|timeout|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up|network|fetch failed/i.test(
+    message
+  )
+}
 
-  const shareUrl = data?.shareUrl || data?.share_url || data?.url
-
-  if (!shareUrl) {
-    throw new Error('部署成功，但接口未返回分享链接。')
-  }
-
-  return {
-    shareUrl,
-    versionNo: data?.versionNo ?? data?.version_no,
-    updateToken: data?.updateToken ?? data?.update_token,
-    temporary: data?.temporary,
-    expiresAt: data?.expiresAt ?? data?.expires_at,
-  }
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
 function stripTrailingSlash(value: string) {

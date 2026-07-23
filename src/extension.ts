@@ -7,6 +7,7 @@ import { createOpenLastDeployUrlCommand } from './commands/openLastDeployUrl'
 import { HtmlToLinkSidebarViewProvider } from './panel/HtmlToLinkSidebarView'
 
 export function activate(context: vscode.ExtensionContext) {
+  console.log('[HtmlToLink] activate called')
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       HtmlToLinkSidebarViewProvider.viewType,

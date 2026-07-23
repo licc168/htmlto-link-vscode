@@ -51,12 +51,15 @@ class HtmlToLinkSidebarViewProvider {
         }));
     }
     async resolveWebviewView(webviewView) {
+        console.log('[HtmlToLink] resolveWebviewView called');
         this.view = webviewView;
         this.locale = await (0, i18n_1.getPreferredUiLocale)(this.context);
+        console.log('[HtmlToLink] locale resolved:', this.locale);
         webviewView.webview.options = {
             enableScripts: true,
         };
         webviewView.webview.html = this.getHtml(webviewView.webview);
+        console.log('[HtmlToLink] html set, length:', webviewView.webview.html.length);
         webviewView.onDidDispose(() => {
             if (this.view === webviewView) {
                 this.view = undefined;
@@ -139,201 +142,123 @@ class HtmlToLinkSidebarViewProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quick Publish</title>
   <style>
-    :root {
-      color-scheme: light dark;
-    }
-    * {
-      box-sizing: border-box;
-    }
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 16px;
+      padding: 12px;
       font-family: var(--vscode-font-family);
       color: var(--vscode-foreground);
       background: var(--vscode-sideBar-background);
     }
     .app {
       display: grid;
-      gap: 14px;
+      gap: 12px;
     }
-    .hero,
-    .card {
-      border-radius: 16px;
-      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
-      background: color-mix(in srgb, var(--vscode-editor-background) 78%, transparent);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-    }
-    .hero {
-      padding: 16px;
-      background:
-        radial-gradient(circle at top right, color-mix(in srgb, var(--vscode-button-background) 24%, transparent), transparent 42%),
-        linear-gradient(180deg, color-mix(in srgb, var(--vscode-editorWidget-background) 96%, transparent), color-mix(in srgb, var(--vscode-sideBar-background) 92%, transparent));
-      display: grid;
-      gap: 14px;
-    }
-    .hero-copy h1 {
-      margin: 0 0 8px;
-      font-size: 18px;
-      line-height: 1.3;
-    }
-    .hero-copy p {
-      margin: 0;
-      color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-      line-height: 1.7;
-    }
-    .locale-row {
+    .top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
     }
-    .locale-label {
-      font-size: 11px;
-      color: var(--vscode-descriptionForeground);
+    .brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--vscode-foreground);
     }
     .locale-switch {
       display: inline-flex;
-      gap: 6px;
-      padding: 4px;
+      gap: 4px;
+      padding: 3px;
       border-radius: 999px;
       background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
     }
     .locale-switch button {
       width: auto;
-      min-height: 28px;
-      padding: 0 10px;
+      min-height: 24px;
+      padding: 0 8px;
       border-radius: 999px;
       background: transparent;
       border: 0;
       color: var(--vscode-descriptionForeground);
+      font-size: 11px;
       font-weight: 700;
+      cursor: pointer;
     }
     .locale-switch button.active {
       color: var(--vscode-button-foreground);
       background: var(--vscode-button-background);
     }
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      min-height: 26px;
-      padding: 0 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      background: color-mix(in srgb, var(--vscode-badge-background) 84%, transparent);
-      color: var(--vscode-badge-foreground);
-    }
-    .card {
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-    .card h2 {
+    .desc {
       margin: 0;
-      font-size: 13px;
-    }
-    .muted {
       color: var(--vscode-descriptionForeground);
       font-size: 12px;
       line-height: 1.6;
     }
-    .url {
-      border-radius: 12px;
-      padding: 10px 12px;
-      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
-      background: color-mix(in srgb, var(--vscode-editor-background) 84%, transparent);
-      font-size: 12px;
-      line-height: 1.6;
-      word-break: break-all;
-    }
-    .status {
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
-      background: color-mix(in srgb, var(--vscode-editor-background) 84%, transparent);
-      display: grid;
-      gap: 4px;
-    }
-    .status strong {
-      font-size: 12px;
-      line-height: 1.4;
-    }
-    button {
+    button.primary {
       width: 100%;
       min-height: 36px;
       padding: 0 12px;
       border: 0;
-      border-radius: 12px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 13px;
       color: var(--vscode-button-foreground);
       background: var(--vscode-button-background);
     }
-    button.secondary {
-      color: var(--vscode-button-secondaryForeground);
-      background: var(--vscode-button-secondaryBackground);
+    button.primary:hover {
+      background: var(--vscode-button-hoverBackground);
     }
-    button.ghost {
-      color: var(--vscode-foreground);
-      background: transparent;
+    .recent {
+      display: grid;
+      gap: 6px;
+    }
+    .recent-label {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+    }
+    .recent-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
+      background: color-mix(in srgb, var(--vscode-editor-background) 84%, transparent);
+      color: var(--vscode-textLink-foreground, var(--vscode-foreground));
+      font-size: 12px;
+      text-decoration: none;
+      cursor: pointer;
+      word-break: break-all;
     }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
+    .recent-link:hover {
+      background: color-mix(in srgb, var(--vscode-editor-background) 60%, transparent);
+    }
+    .recent-link .icon {
+      flex-shrink: 0;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <section class="hero">
-      <div class="locale-row">
-        <span id="localeLabel" class="locale-label"></span>
-        <div class="locale-switch">
-          <button id="localeZhBtn" type="button">中文</button>
-          <button id="localeEnBtn" type="button">EN</button>
-        </div>
+    <div class="top-row">
+      <span class="brand">HTML to Link</span>
+      <div class="locale-switch">
+        <button id="localeZhBtn" type="button">中文</button>
+        <button id="localeEnBtn" type="button">EN</button>
       </div>
-      <div class="hero-copy">
-        <h1 id="headerTitle"></h1>
-        <p id="headerDescription"></p>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="row">
-        <span id="tokenBadge" class="badge"></span>
-        <span id="fixedEntryBadge" class="badge"></span>
-      </div>
-      <div id="modeStatus" class="status">
-        <strong id="modeStatusTitle"></strong>
-        <div id="modeStatusDesc" class="muted"></div>
-      </div>
-      <button id="openPanelBtn" type="button"></button>
-      <button id="deployFolderBtn" class="secondary" type="button"></button>
-      <button id="setTokenBtn" class="ghost" type="button"></button>
-    </section>
-
-    <section class="card">
-      <h2 id="recentFolderTitle"></h2>
-      <div id="lastFolderEmpty" class="muted"></div>
-      <div id="lastFolderValue" class="url" hidden></div>
-      <button id="openRecentFolderBtn" class="secondary" type="button" disabled></button>
-    </section>
-
-    <section class="card">
-      <h2 id="recentLinkTitle"></h2>
-      <div id="lastUrlEmpty" class="muted"></div>
-      <div id="lastUrlValue" class="url" hidden></div>
-      <button id="openLastUrlBtn" class="ghost" type="button" disabled></button>
-    </section>
+    </div>
+    <p id="descText" class="desc"></p>
+    <button id="openPanelBtn" class="primary" type="button"></button>
+    <div id="recentSection" class="recent" hidden>
+      <span id="recentLabel" class="recent-label"></span>
+      <a id="recentLink" class="recent-link" href="#">
+        <span class="icon">&#128279;</span>
+        <span id="recentUrl"></span>
+      </a>
+    </div>
   </div>
 
   <script nonce="${nonce}">
@@ -341,31 +266,17 @@ class HtmlToLinkSidebarViewProvider {
     const localizedMessages = ${localizedMessages};
     const state = {
       uiLocale: 'zh-CN',
-      hasSavedToken: false,
-      lastDeployUrl: '',
-      lastFolderPath: ''
+      lastDeployUrl: ''
     };
 
-    const localeLabel = document.getElementById('localeLabel');
     const localeZhBtn = document.getElementById('localeZhBtn');
     const localeEnBtn = document.getElementById('localeEnBtn');
-    const headerTitle = document.getElementById('headerTitle');
-    const headerDescription = document.getElementById('headerDescription');
-    const tokenBadge = document.getElementById('tokenBadge');
-    const fixedEntryBadge = document.getElementById('fixedEntryBadge');
-    const modeStatusTitle = document.getElementById('modeStatusTitle');
-    const modeStatusDesc = document.getElementById('modeStatusDesc');
+    const descText = document.getElementById('descText');
     const openPanelBtn = document.getElementById('openPanelBtn');
-    const deployFolderBtn = document.getElementById('deployFolderBtn');
-    const setTokenBtn = document.getElementById('setTokenBtn');
-    const recentFolderTitle = document.getElementById('recentFolderTitle');
-    const lastFolderEmpty = document.getElementById('lastFolderEmpty');
-    const lastFolderValue = document.getElementById('lastFolderValue');
-    const openRecentFolderBtn = document.getElementById('openRecentFolderBtn');
-    const recentLinkTitle = document.getElementById('recentLinkTitle');
-    const lastUrlEmpty = document.getElementById('lastUrlEmpty');
-    const lastUrlValue = document.getElementById('lastUrlValue');
-    const openLastUrlBtn = document.getElementById('openLastUrlBtn');
+    const recentSection = document.getElementById('recentSection');
+    const recentLabel = document.getElementById('recentLabel');
+    const recentLink = document.getElementById('recentLink');
+    const recentUrl = document.getElementById('recentUrl');
 
     function getCopy() {
       return localizedMessages[state.uiLocale].sidebar;
@@ -373,86 +284,38 @@ class HtmlToLinkSidebarViewProvider {
 
     function render() {
       const copy = getCopy();
-      localeLabel.textContent = localizedMessages[state.uiLocale].panel.languageSwitcherLabel;
       localeZhBtn.classList.toggle('active', state.uiLocale === 'zh-CN');
       localeEnBtn.classList.toggle('active', state.uiLocale === 'en');
-      headerTitle.textContent = copy.headerTitle;
-      headerDescription.textContent = copy.headerDescription;
-      tokenBadge.textContent = state.hasSavedToken ? copy.savedTokenBadge : copy.emptyTokenBadge;
-      fixedEntryBadge.textContent = copy.fixedEntryBadge;
-      modeStatusTitle.textContent = state.hasSavedToken ? copy.recommendedSavedTitle : copy.recommendedGuestTitle;
-      modeStatusDesc.textContent = state.hasSavedToken ? copy.recommendedSavedDesc : copy.recommendedGuestDesc;
+      descText.textContent = copy.headerDescription;
       openPanelBtn.textContent = copy.openPanel;
-      deployFolderBtn.textContent = copy.deployFolder;
-      setTokenBtn.textContent = copy.tokenSettings;
-      recentFolderTitle.textContent = copy.recentFolderTitle;
-      lastFolderEmpty.textContent = copy.recentFolderEmpty;
-      openRecentFolderBtn.textContent = copy.continueFolder;
-      recentLinkTitle.textContent = copy.recentLinkTitle;
-      lastUrlEmpty.textContent = copy.recentLinkEmpty;
-      openLastUrlBtn.textContent = copy.openRecentLink;
-
-      if (state.lastFolderPath) {
-        lastFolderEmpty.hidden = true;
-        lastFolderValue.hidden = false;
-        lastFolderValue.textContent = state.lastFolderPath;
-        openRecentFolderBtn.disabled = false;
-      } else {
-        lastFolderEmpty.hidden = false;
-        lastFolderValue.hidden = true;
-        lastFolderValue.textContent = '';
-        openRecentFolderBtn.disabled = true;
-      }
+      recentLabel.textContent = copy.recentLinkTitle;
 
       if (state.lastDeployUrl) {
-        lastUrlEmpty.hidden = true;
-        lastUrlValue.hidden = false;
-        lastUrlValue.textContent = state.lastDeployUrl;
-        openLastUrlBtn.disabled = false;
+        recentSection.hidden = false;
+        recentUrl.textContent = state.lastDeployUrl;
       } else {
-        lastUrlEmpty.hidden = false;
-        lastUrlValue.hidden = true;
-        lastUrlValue.textContent = '';
-        openLastUrlBtn.disabled = true;
+        recentSection.hidden = true;
       }
     }
 
     localeZhBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'setLocale', locale: 'zh-CN' });
     });
-
     localeEnBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'setLocale', locale: 'en' });
     });
-
     openPanelBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'openPanel' });
     });
-
-    deployFolderBtn.addEventListener('click', () => {
-      vscode.postMessage({ type: 'deployFolder' });
-    });
-
-    openRecentFolderBtn.addEventListener('click', () => {
-      if (!openRecentFolderBtn.disabled) {
-        vscode.postMessage({ type: 'openRecentFolder' });
-      }
-    });
-
-    setTokenBtn.addEventListener('click', () => {
-      vscode.postMessage({ type: 'setToken' });
-    });
-
-    openLastUrlBtn.addEventListener('click', () => {
-      if (!openLastUrlBtn.disabled) {
-        vscode.postMessage({ type: 'openLastUrl' });
-      }
+    recentLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      vscode.postMessage({ type: 'openLastUrl' });
     });
 
     window.addEventListener('message', (event) => {
-      const message = event.data;
-      if (message.type === 'state' && message.state) {
-        Object.assign(state, message.state);
+      const msg = event.data;
+      if (msg.type === 'state' && msg.state) {
+        Object.assign(state, msg.state);
         render();
       }
     });

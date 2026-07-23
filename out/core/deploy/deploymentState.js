@@ -39,8 +39,10 @@ exports.setLastDeployedUrl = setLastDeployedUrl;
 exports.getLastDeployedUrl = getLastDeployedUrl;
 exports.setLastUsedFolder = setLastUsedFolder;
 exports.getLastUsedFolder = getLastUsedFolder;
+exports.resolveDefaultFolderPath = resolveDefaultFolderPath;
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
+const vscode = __importStar(require("vscode"));
 const LAST_DEPLOY_URL_KEY = 'htmlToLink.lastDeployUrl';
 const LAST_FOLDER_PATH_KEY = 'htmlToLink.lastFolderPath';
 const DEPLOYMENT_META_FILE = '.htmltolink.json';
@@ -69,6 +71,50 @@ async function setLastUsedFolder(context, folderPath) {
 }
 function getLastUsedFolder(context) {
     return context.globalState.get(LAST_FOLDER_PATH_KEY);
+}
+/**
+ * 自动解析默认项目目录：
+ * 1. 上次使用的目录（若仍存在，且位于当前工作区内）
+ * 2. 当前工作区根目录
+ * 3. 上次使用的目录（无工作区时的回退）
+ */
+async function resolveDefaultFolderPath(context) {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const lastFolder = getLastUsedFolder(context);
+    if (workspaceRoot) {
+        if (lastFolder &&
+            isPathInsideOrEqual(lastFolder, workspaceRoot) &&
+            (await pathExists(lastFolder))) {
+            return lastFolder;
+        }
+        if (await pathExists(workspaceRoot)) {
+            return workspaceRoot;
+        }
+    }
+    if (lastFolder && (await pathExists(lastFolder))) {
+        return lastFolder;
+    }
+    return undefined;
+}
+function isPathInsideOrEqual(child, parent) {
+    const normalizedChild = path.resolve(child);
+    const normalizedParent = path.resolve(parent);
+    if (normalizedChild === normalizedParent) {
+        return true;
+    }
+    const relative = path.relative(normalizedParent, normalizedChild);
+    return (relative !== '' &&
+        !relative.startsWith('..') &&
+        !path.isAbsolute(relative));
+}
+async function pathExists(targetPath) {
+    try {
+        await fs.access(targetPath);
+        return true;
+    }
+    catch {
+        return false;
+    }
 }
 function getMetadataFilePath(folderPath) {
     return path.join(folderPath, DEPLOYMENT_META_FILE);

@@ -3,7 +3,7 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.7",
+  "version": "0.1.10",
   "license": "MIT",
   "publisher": "licc",
   "private": true,
@@ -97,7 +97,8 @@
       "htmlToLink": [
         {
           "id": "htmlToLink.sidebarView",
-          "name": "%view.sidebar.name%"
+          "name": "%view.sidebar.name%",
+          "type": "webview"
         }
       ]
     },

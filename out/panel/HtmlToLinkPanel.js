@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HtmlToLinkPanel = void 0;
+const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const selectFolder_1 = require("../commands/selectFolder");
 const tokenStore_1 = require("../core/config/tokenStore");
@@ -55,11 +56,21 @@ class HtmlToLinkPanel {
     static async createOrShow(context, resourceUri) {
         const locale = await (0, i18n_1.getPreferredUiLocale)(context);
         const column = vscode.window.activeTextEditor?.viewColumn;
+        // 右键指定路径优先；否则自动识别工作区根目录 / 上次使用目录
+        const initialFolderPath = resourceUri
+            ? await resolveFolderFromUri(resourceUri)
+            : await (0, deploymentState_1.resolveDefaultFolderPath)(context);
         if (HtmlToLinkPanel.currentPanel) {
             await HtmlToLinkPanel.currentPanel.applyLocale(locale);
             HtmlToLinkPanel.currentPanel.panel.reveal(column);
-            if (resourceUri?.fsPath) {
-                await HtmlToLinkPanel.currentPanel.loadFolder(resourceUri.fsPath);
+            if (resourceUri && initialFolderPath) {
+                // 从资源管理器显式打开时，始终切换到指定目录
+                await HtmlToLinkPanel.currentPanel.loadFolder(initialFolderPath);
+            }
+            else if (!HtmlToLinkPanel.currentPanel.state.folderPath &&
+                initialFolderPath) {
+                // 面板已打开但尚未选择目录时，自动填入默认根目录
+                await HtmlToLinkPanel.currentPanel.loadFolder(initialFolderPath);
             }
             else {
                 await HtmlToLinkPanel.currentPanel.refreshState();
@@ -70,7 +81,7 @@ class HtmlToLinkPanel {
             enableScripts: true,
             retainContextWhenHidden: true,
         });
-        HtmlToLinkPanel.currentPanel = new HtmlToLinkPanel(context, panel, locale, resourceUri?.fsPath);
+        HtmlToLinkPanel.currentPanel = new HtmlToLinkPanel(context, panel, locale, initialFolderPath);
         return HtmlToLinkPanel.currentPanel;
     }
     static async openForTokenInput(context) {
@@ -176,7 +187,9 @@ class HtmlToLinkPanel {
         await this.refreshState();
     }
     async handleChooseFolder() {
-        const picked = await (0, selectFolder_1.selectFolder)(this.state.folderPath ? vscode.Uri.file(this.state.folderPath) : undefined);
+        const defaultPath = this.state.folderPath ||
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const picked = await (0, selectFolder_1.selectFolder)(defaultPath ? vscode.Uri.file(defaultPath) : undefined);
         if (!picked) {
             return;
         }
@@ -255,6 +268,13 @@ class HtmlToLinkPanel {
             if (payload.useExistingShareUrl && this.state.previousShareUrl && !shareUrl) {
                 this.showToast('warning', this.copy.toastReuseUnavailable);
             }
+            const progressKeyMap = {
+                collecting: 'deployProgressCollecting',
+                zipping: 'deployProgressZipping',
+                uploading: 'deployProgressUploading',
+                saving: 'deployProgressSaving',
+            };
+            this.postMessage({ type: 'deployStart', label: this.copy.deploying });
             const result = await (0, performDeployment_1.performDeployment)({
                 context: this.context,
                 folderPath,
@@ -262,6 +282,20 @@ class HtmlToLinkPanel {
                 token,
                 shareUrl,
                 updateToken,
+                onProgress: (step) => {
+                    const key = progressKeyMap[step];
+                    const label = key ? String(this.copy[key]) : this.copy.deploying;
+                    this.postMessage({ type: 'deployProgress', label });
+                },
+                onRetry: (attempt, max) => {
+                    this.postMessage({
+                        type: 'deployProgress',
+                        label: (0, i18n_1.formatMessage)(this.copy.deployProgressRetrying, {
+                            attempt,
+                            max,
+                        }),
+                    });
+                },
             });
             if (getAutoCopyUrl()) {
                 await (0, notifications_1.copyToClipboard)(result.shareUrl);
@@ -286,6 +320,9 @@ class HtmlToLinkPanel {
                     ? error
                     : this.copy.unknownError;
             this.showToast('error', (0, i18n_1.formatMessage)(this.copy.errorDeployFailed, { message }));
+        }
+        finally {
+            this.postMessage({ type: 'deployEnd', label: this.copy.deploy });
         }
     }
     postState() {
@@ -514,6 +551,29 @@ class HtmlToLinkPanel {
     .grow {
       flex: 1;
     }
+    .deploying {
+      opacity: 0.75;
+      cursor: not-allowed;
+      pointer-events: none;
+      position: relative;
+      padding-left: 32px;
+    }
+    .deploying::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      margin-top: -7px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -536,6 +596,7 @@ class HtmlToLinkPanel {
       border-radius: 14px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
       background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
+      color: var(--vscode-foreground);
       cursor: pointer;
     }
     .mode-option.active {
@@ -544,6 +605,7 @@ class HtmlToLinkPanel {
     }
     .mode-option strong {
       font-size: 13px;
+      color: var(--vscode-foreground);
     }
     .mode-option span {
       color: var(--vscode-descriptionForeground);
@@ -981,7 +1043,9 @@ class HtmlToLinkPanel {
       canReuseExistingShareUrl: false,
       saveToken: true,
       useExistingShareUrl: true,
-      customToken: ''
+      customToken: '',
+      isDeploying: false,
+      deployLabel: ''
     };
 
     const heroTitle = document.getElementById('heroTitle');
@@ -1112,7 +1176,15 @@ class HtmlToLinkPanel {
       customTokenHint.textContent = currentCopy.customTokenHint;
       saveTokenLabel.textContent = currentCopy.saveTokenLabel;
       guestNote.textContent = currentCopy.guestNote;
-      deployBtn.textContent = currentCopy.deploy;
+      if (state.isDeploying) {
+        deployBtn.textContent = state.deployLabel || currentCopy.deploying;
+        deployBtn.classList.add('deploying');
+        deployBtn.disabled = true;
+      } else {
+        deployBtn.textContent = currentCopy.deploy;
+        deployBtn.classList.remove('deploying');
+        deployBtn.disabled = false;
+      }
       clearTokenBtn.textContent = currentCopy.clearSavedToken;
       deployOptionsTitle.textContent = currentCopy.deployOptionsTitle;
       reuseExistingShareUrlLabel.textContent = currentCopy.reuseExistingDeployment;
@@ -1481,6 +1553,26 @@ class HtmlToLinkPanel {
         return;
       }
 
+      if (message.type === 'deployStart') {
+        state.isDeploying = true;
+        state.deployLabel = message.label || '';
+        render();
+        return;
+      }
+
+      if (message.type === 'deployProgress') {
+        state.deployLabel = message.label || '';
+        render();
+        return;
+      }
+
+      if (message.type === 'deployEnd') {
+        state.isDeploying = false;
+        state.deployLabel = '';
+        render();
+        return;
+      }
+
       if (message.type === 'confirmClearToken') {
         openClearTokenConfirm();
       }
@@ -1494,6 +1586,19 @@ class HtmlToLinkPanel {
     }
 }
 exports.HtmlToLinkPanel = HtmlToLinkPanel;
+async function resolveFolderFromUri(resourceUri) {
+    try {
+        const stat = await vscode.workspace.fs.stat(resourceUri);
+        if (stat.type & vscode.FileType.Directory) {
+            return resourceUri.fsPath;
+        }
+        return path.dirname(resourceUri.fsPath);
+    }
+    catch {
+        // 路径可能已不存在，尽量回退到父目录
+        return path.dirname(resourceUri.fsPath);
+    }
+}
 function getAutoCopyUrl() {
     return vscode.workspace
         .getConfiguration('htmlToLink')

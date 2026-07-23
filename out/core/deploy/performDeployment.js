@@ -40,43 +40,38 @@ const collectFiles_1 = require("./collectFiles");
 const zipProject_1 = require("./zipProject");
 const deployClient_1 = require("./deployClient");
 const deploymentState_1 = require("./deploymentState");
-async function performDeployment({ context, folderPath, entryFile, token, shareUrl, updateToken, }) {
+async function performDeployment({ context, folderPath, entryFile, token, shareUrl, updateToken, onProgress, onRetry, }) {
     const apiBaseUrl = getApiBaseUrl();
     const excludePatterns = getExcludePatterns();
-    return vscode.window.withProgress({
-        location: vscode.ProgressLocation.Notification,
-        title: '正在部署到 HTML to Link',
-        cancellable: false,
-    }, async (progress) => {
-        progress.report({ message: '正在收集文件...' });
-        const files = await (0, collectFiles_1.collectFiles)(folderPath, excludePatterns);
-        progress.report({ message: '正在打包项目...' });
-        const archive = await (0, zipProject_1.zipProject)(folderPath, files);
-        progress.report({ message: '正在上传内容...' });
-        const result = await (0, deployClient_1.deployArchive)({
-            apiBaseUrl,
-            archiveBuffer: archive.buffer,
-            archiveFileName: archive.fileName,
-            title: path.basename(folderPath),
-            entryFile,
-            token,
-            shareUrl,
-            updateToken,
-        });
-        progress.report({ message: '正在保存部署记录...' });
-        await (0, deploymentState_1.saveDeploymentMetadata)(folderPath, {
-            shareUrl: result.shareUrl,
-            versionNo: result.versionNo,
-            entryFile,
-            lastDeployTime: new Date().toISOString(),
-            projectPath: folderPath,
-            updateToken: result.updateToken,
-            temporary: result.temporary,
-            expiresAt: result.expiresAt,
-        });
-        await (0, deploymentState_1.setLastDeployedUrl)(context, result.shareUrl);
-        return result;
+    onProgress?.('collecting');
+    const files = await (0, collectFiles_1.collectFiles)(folderPath, excludePatterns);
+    onProgress?.('zipping');
+    const archive = await (0, zipProject_1.zipProject)(folderPath, files);
+    onProgress?.('uploading');
+    const result = await (0, deployClient_1.deployArchive)({
+        apiBaseUrl,
+        archiveBuffer: archive.buffer,
+        archiveFileName: archive.fileName,
+        title: path.basename(folderPath),
+        entryFile,
+        token,
+        shareUrl,
+        updateToken,
+        onRetry,
     });
+    onProgress?.('saving');
+    await (0, deploymentState_1.saveDeploymentMetadata)(folderPath, {
+        shareUrl: result.shareUrl,
+        versionNo: result.versionNo,
+        entryFile,
+        lastDeployTime: new Date().toISOString(),
+        projectPath: folderPath,
+        updateToken: result.updateToken,
+        temporary: result.temporary,
+        expiresAt: result.expiresAt,
+    });
+    await (0, deploymentState_1.setLastDeployedUrl)(context, result.shareUrl);
+    return result;
 }
 function getApiBaseUrl() {
     return vscode.workspace

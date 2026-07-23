@@ -58,6 +58,64 @@ export function getLastUsedFolder(context: vscode.ExtensionContext) {
   return context.globalState.get<string>(LAST_FOLDER_PATH_KEY)
 }
 
+/**
+ * 自动解析默认项目目录：
+ * 1. 上次使用的目录（若仍存在，且位于当前工作区内）
+ * 2. 当前工作区根目录
+ * 3. 上次使用的目录（无工作区时的回退）
+ */
+export async function resolveDefaultFolderPath(
+  context: vscode.ExtensionContext
+): Promise<string | undefined> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+  const lastFolder = getLastUsedFolder(context)
+
+  if (workspaceRoot) {
+    if (
+      lastFolder &&
+      isPathInsideOrEqual(lastFolder, workspaceRoot) &&
+      (await pathExists(lastFolder))
+    ) {
+      return lastFolder
+    }
+
+    if (await pathExists(workspaceRoot)) {
+      return workspaceRoot
+    }
+  }
+
+  if (lastFolder && (await pathExists(lastFolder))) {
+    return lastFolder
+  }
+
+  return undefined
+}
+
+function isPathInsideOrEqual(child: string, parent: string) {
+  const normalizedChild = path.resolve(child)
+  const normalizedParent = path.resolve(parent)
+
+  if (normalizedChild === normalizedParent) {
+    return true
+  }
+
+  const relative = path.relative(normalizedParent, normalizedChild)
+  return (
+    relative !== '' &&
+    !relative.startsWith('..') &&
+    !path.isAbsolute(relative)
+  )
+}
+
+async function pathExists(targetPath: string) {
+  try {
+    await fs.access(targetPath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function getMetadataFilePath(folderPath: string) {
   return path.join(folderPath, DEPLOYMENT_META_FILE)
 }

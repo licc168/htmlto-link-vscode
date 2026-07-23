@@ -12,6 +12,8 @@ export type PerformDeploymentParams = {
   token: string | null
   shareUrl?: string
   updateToken?: string
+  onProgress?: (message: string) => void
+  onRetry?: (attempt: number, maxAttempts: number) => void
 }
 
 export async function performDeployment({
@@ -21,52 +23,46 @@ export async function performDeployment({
   token,
   shareUrl,
   updateToken,
+  onProgress,
+  onRetry,
 }: PerformDeploymentParams) {
   const apiBaseUrl = getApiBaseUrl()
   const excludePatterns = getExcludePatterns()
 
-  return vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: '正在部署到 HTML to Link',
-      cancellable: false,
-    },
-    async (progress) => {
-      progress.report({ message: '正在收集文件...' })
-      const files = await collectFiles(folderPath, excludePatterns)
+  onProgress?.('collecting')
+  const files = await collectFiles(folderPath, excludePatterns)
 
-      progress.report({ message: '正在打包项目...' })
-      const archive = await zipProject(folderPath, files)
+  onProgress?.('zipping')
+  const archive = await zipProject(folderPath, files)
 
-      progress.report({ message: '正在上传内容...' })
-      const result = await deployArchive({
-        apiBaseUrl,
-        archiveBuffer: archive.buffer,
-        archiveFileName: archive.fileName,
-        title: path.basename(folderPath),
-        entryFile,
-        token,
-        shareUrl,
-        updateToken,
-      })
+  onProgress?.('uploading')
+  const result = await deployArchive({
+    apiBaseUrl,
+    archiveBuffer: archive.buffer,
+    archiveFileName: archive.fileName,
+    title: path.basename(folderPath),
+    entryFile,
+    token,
+    shareUrl,
+    updateToken,
+    onRetry,
+  })
 
-      progress.report({ message: '正在保存部署记录...' })
-      await saveDeploymentMetadata(folderPath, {
-        shareUrl: result.shareUrl,
-        versionNo: result.versionNo,
-        entryFile,
-        lastDeployTime: new Date().toISOString(),
-        projectPath: folderPath,
-        updateToken: result.updateToken,
-        temporary: result.temporary,
-        expiresAt: result.expiresAt,
-      })
+  onProgress?.('saving')
+  await saveDeploymentMetadata(folderPath, {
+    shareUrl: result.shareUrl,
+    versionNo: result.versionNo,
+    entryFile,
+    lastDeployTime: new Date().toISOString(),
+    projectPath: folderPath,
+    updateToken: result.updateToken,
+    temporary: result.temporary,
+    expiresAt: result.expiresAt,
+  })
 
-      await setLastDeployedUrl(context, result.shareUrl)
+  await setLastDeployedUrl(context, result.shareUrl)
 
-      return result
-    }
-  )
+  return result
 }
 
 function getApiBaseUrl() {

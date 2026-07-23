@@ -36,6 +36,12 @@ type PanelMessages = {
   saveTokenLabel: string
   guestNote: string
   deploy: string
+  deploying: string
+  deployProgressCollecting: string
+  deployProgressZipping: string
+  deployProgressUploading: string
+  deployProgressSaving: string
+  deployProgressRetrying: string
   clearSavedToken: string
   deployOptionsTitle: string
   reuseExistingDeployment: string
@@ -150,6 +156,12 @@ export const messages: Record<UiLocale, Messages> = {
       guestNote:
         '当前为游客部署模式，发布成功后链接仅保留 24 小时。若需要长期保存和版本更新，建议使用 Token。',
       deploy: '开始部署',
+      deploying: '部署中...',
+      deployProgressCollecting: '正在收集文件...',
+      deployProgressZipping: '正在打包项目...',
+      deployProgressUploading: '正在上传内容...',
+      deployProgressSaving: '正在保存记录...',
+      deployProgressRetrying: '上传暂时失败，正在自动重试（{attempt}/{max}）...',
       clearSavedToken: '清除已保存 Token',
       deployOptionsTitle: '部署选项',
       reuseExistingDeployment: '如果检测到已有部署记录，则在原链接上创建新版本',
@@ -281,6 +293,12 @@ export const messages: Record<UiLocale, Messages> = {
       guestNote:
         'You are using guest publish mode. The published link lasts for 24 hours only. Use a token if you need long-term links and version updates.',
       deploy: 'Start Publish',
+      deploying: 'Publishing...',
+      deployProgressCollecting: 'Collecting files...',
+      deployProgressZipping: 'Packaging project...',
+      deployProgressUploading: 'Uploading content...',
+      deployProgressSaving: 'Saving record...',
+      deployProgressRetrying: 'Upload failed temporarily, retrying ({attempt}/{max})...',
       clearSavedToken: 'Clear Saved Token',
       deployOptionsTitle: 'Publish Options',
       reuseExistingDeployment:

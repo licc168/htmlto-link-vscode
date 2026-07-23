@@ -43,6 +43,7 @@ const clearToken_1 = require("./commands/clearToken");
 const openLastDeployUrl_1 = require("./commands/openLastDeployUrl");
 const HtmlToLinkSidebarView_1 = require("./panel/HtmlToLinkSidebarView");
 function activate(context) {
+    console.log('[HtmlToLink] activate called');
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider.viewType, new HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider(context)), vscode.commands.registerCommand('htmlToLink.openPanel', (0, openPanel_1.createOpenPanelCommand)(context)), vscode.commands.registerCommand('htmlToLink.deployFolder', (0, deployFolder_1.createDeployFolderCommand)(context)), vscode.commands.registerCommand('htmlToLink.setToken', (0, setToken_1.createSetTokenCommand)(context)), vscode.commands.registerCommand('htmlToLink.clearToken', (0, clearToken_1.createClearTokenCommand)(context)), vscode.commands.registerCommand('htmlToLink.openLastDeployUrl', (0, openLastDeployUrl_1.createOpenLastDeployUrlCommand)(context)));
 }
 function deactivate() { }

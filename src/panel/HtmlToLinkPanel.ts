@@ -1,3 +1,4 @@
+import * as path from 'path'
 import * as vscode from 'vscode'
 import { selectFolder } from '../commands/selectFolder'
 import {
@@ -12,6 +13,7 @@ import {
 import {
   getDeploymentMetadata,
   getLastDeployedUrl,
+  resolveDefaultFolderPath,
   setLastUsedFolder,
 } from '../core/deploy/deploymentState'
 import { performDeployment } from '../core/deploy/performDeployment'
@@ -76,6 +78,18 @@ type PendingWebviewMessage =
   | {
       type: 'confirmClearToken'
     }
+  | {
+      type: 'deployStart'
+      label: string
+    }
+  | {
+      type: 'deployProgress'
+      label: string
+    }
+  | {
+      type: 'deployEnd'
+      label: string
+    }
 
 export class HtmlToLinkPanel {
   private static currentPanel: HtmlToLinkPanel | undefined
@@ -93,13 +107,24 @@ export class HtmlToLinkPanel {
   ) {
     const locale = await getPreferredUiLocale(context)
     const column = vscode.window.activeTextEditor?.viewColumn
+    // 右键指定路径优先；否则自动识别工作区根目录 / 上次使用目录
+    const initialFolderPath = resourceUri
+      ? await resolveFolderFromUri(resourceUri)
+      : await resolveDefaultFolderPath(context)
 
     if (HtmlToLinkPanel.currentPanel) {
       await HtmlToLinkPanel.currentPanel.applyLocale(locale)
       HtmlToLinkPanel.currentPanel.panel.reveal(column)
 
-      if (resourceUri?.fsPath) {
-        await HtmlToLinkPanel.currentPanel.loadFolder(resourceUri.fsPath)
+      if (resourceUri && initialFolderPath) {
+        // 从资源管理器显式打开时，始终切换到指定目录
+        await HtmlToLinkPanel.currentPanel.loadFolder(initialFolderPath)
+      } else if (
+        !HtmlToLinkPanel.currentPanel.state.folderPath &&
+        initialFolderPath
+      ) {
+        // 面板已打开但尚未选择目录时，自动填入默认根目录
+        await HtmlToLinkPanel.currentPanel.loadFolder(initialFolderPath)
       } else {
         await HtmlToLinkPanel.currentPanel.refreshState()
       }
@@ -121,7 +146,7 @@ export class HtmlToLinkPanel {
       context,
       panel,
       locale,
-      resourceUri?.fsPath
+      initialFolderPath
     )
 
     return HtmlToLinkPanel.currentPanel
@@ -251,8 +276,12 @@ export class HtmlToLinkPanel {
   }
 
   private async handleChooseFolder() {
+    const defaultPath =
+      this.state.folderPath ||
+      vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+
     const picked = await selectFolder(
-      this.state.folderPath ? vscode.Uri.file(this.state.folderPath) : undefined
+      defaultPath ? vscode.Uri.file(defaultPath) : undefined
     )
 
     if (!picked) {
@@ -364,6 +393,15 @@ export class HtmlToLinkPanel {
         this.showToast('warning', this.copy.toastReuseUnavailable)
       }
 
+      const progressKeyMap: Record<string, keyof typeof this.copy> = {
+        collecting: 'deployProgressCollecting',
+        zipping: 'deployProgressZipping',
+        uploading: 'deployProgressUploading',
+        saving: 'deployProgressSaving',
+      }
+
+      this.postMessage({ type: 'deployStart', label: this.copy.deploying })
+
       const result = await performDeployment({
         context: this.context,
         folderPath,
@@ -371,6 +409,20 @@ export class HtmlToLinkPanel {
         token,
         shareUrl,
         updateToken,
+        onProgress: (step) => {
+          const key = progressKeyMap[step]
+          const label = key ? String(this.copy[key]) : this.copy.deploying
+          this.postMessage({ type: 'deployProgress', label })
+        },
+        onRetry: (attempt, max) => {
+          this.postMessage({
+            type: 'deployProgress',
+            label: formatMessage(this.copy.deployProgressRetrying, {
+              attempt,
+              max,
+            }),
+          })
+        },
       })
 
       if (getAutoCopyUrl()) {
@@ -408,6 +460,8 @@ export class HtmlToLinkPanel {
         'error',
         formatMessage(this.copy.errorDeployFailed, { message })
       )
+    } finally {
+      this.postMessage({ type: 'deployEnd', label: this.copy.deploy })
     }
   }
 
@@ -651,6 +705,29 @@ export class HtmlToLinkPanel {
     .grow {
       flex: 1;
     }
+    .deploying {
+      opacity: 0.75;
+      cursor: not-allowed;
+      pointer-events: none;
+      position: relative;
+      padding-left: 32px;
+    }
+    .deploying::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      margin-top: -7px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -673,6 +750,7 @@ export class HtmlToLinkPanel {
       border-radius: 14px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
       background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
+      color: var(--vscode-foreground);
       cursor: pointer;
     }
     .mode-option.active {
@@ -681,6 +759,7 @@ export class HtmlToLinkPanel {
     }
     .mode-option strong {
       font-size: 13px;
+      color: var(--vscode-foreground);
     }
     .mode-option span {
       color: var(--vscode-descriptionForeground);
@@ -1118,7 +1197,9 @@ export class HtmlToLinkPanel {
       canReuseExistingShareUrl: false,
       saveToken: true,
       useExistingShareUrl: true,
-      customToken: ''
+      customToken: '',
+      isDeploying: false,
+      deployLabel: ''
     };
 
     const heroTitle = document.getElementById('heroTitle');
@@ -1249,7 +1330,15 @@ export class HtmlToLinkPanel {
       customTokenHint.textContent = currentCopy.customTokenHint;
       saveTokenLabel.textContent = currentCopy.saveTokenLabel;
       guestNote.textContent = currentCopy.guestNote;
-      deployBtn.textContent = currentCopy.deploy;
+      if (state.isDeploying) {
+        deployBtn.textContent = state.deployLabel || currentCopy.deploying;
+        deployBtn.classList.add('deploying');
+        deployBtn.disabled = true;
+      } else {
+        deployBtn.textContent = currentCopy.deploy;
+        deployBtn.classList.remove('deploying');
+        deployBtn.disabled = false;
+      }
       clearTokenBtn.textContent = currentCopy.clearSavedToken;
       deployOptionsTitle.textContent = currentCopy.deployOptionsTitle;
       reuseExistingShareUrlLabel.textContent = currentCopy.reuseExistingDeployment;
@@ -1618,6 +1707,26 @@ export class HtmlToLinkPanel {
         return;
       }
 
+      if (message.type === 'deployStart') {
+        state.isDeploying = true;
+        state.deployLabel = message.label || '';
+        render();
+        return;
+      }
+
+      if (message.type === 'deployProgress') {
+        state.deployLabel = message.label || '';
+        render();
+        return;
+      }
+
+      if (message.type === 'deployEnd') {
+        state.isDeploying = false;
+        state.deployLabel = '';
+        render();
+        return;
+      }
+
       if (message.type === 'confirmClearToken') {
         openClearTokenConfirm();
       }
@@ -1628,6 +1737,19 @@ export class HtmlToLinkPanel {
   </script>
 </body>
 </html>`
+  }
+}
+
+async function resolveFolderFromUri(resourceUri: vscode.Uri) {
+  try {
+    const stat = await vscode.workspace.fs.stat(resourceUri)
+    if (stat.type & vscode.FileType.Directory) {
+      return resourceUri.fsPath
+    }
+    return path.dirname(resourceUri.fsPath)
+  } catch {
+    // 路径可能已不存在，尽量回退到父目录
+    return path.dirname(resourceUri.fsPath)
   }
 }
 
