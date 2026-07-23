@@ -112,9 +112,27 @@ type SidebarMessages = {
   openRecentLink: string
 }
 
+type QuickPublishMessages = {
+  progressTitle: string
+  progressCollecting: string
+  progressZipping: string
+  progressUploading: string
+  progressSaving: string
+  progressRetrying: string
+  noTarget: string
+  success: string
+  successCopied: string
+  openLink: string
+  copyLink: string
+  copied: string
+  failed: string
+  unknownError: string
+}
+
 type Messages = {
   panel: PanelMessages
   sidebar: SidebarMessages
+  quickPublish: QuickPublishMessages
 }
 
 export const messages: Record<UiLocale, Messages> = {
@@ -252,6 +270,23 @@ export const messages: Record<UiLocale, Messages> = {
       recentLinkTitle: '最近发布链接',
       recentLinkEmpty: '还没有最近发布记录。完成一次部署后，这里会提供快速打开入口。',
       openRecentLink: '打开最近链接',
+    },
+    quickPublish: {
+      progressTitle: '正在发布 HTML…',
+      progressCollecting: '正在收集文件…',
+      progressZipping: '正在打包项目…',
+      progressUploading: '正在上传…',
+      progressSaving: '正在保存记录…',
+      progressRetrying: '上传失败，正在重试（{attempt}/{max}）…',
+      noTarget:
+        '未找到可发布的 HTML。请打开一个 .html 文件，或在含 index.html 的文件夹中使用。',
+      success: '发布成功：{url}',
+      successCopied: '发布成功，链接已复制：{url}',
+      openLink: '打开链接',
+      copyLink: '复制链接',
+      copied: '链接已复制到剪贴板',
+      failed: '发布失败：{message}',
+      unknownError: '未知错误',
     },
   },
   en: {
@@ -393,6 +428,23 @@ export const messages: Record<UiLocale, Messages> = {
       recentLinkTitle: 'Recent Published Link',
       recentLinkEmpty: 'No recent publish yet. After one successful publish, a quick open action appears here.',
       openRecentLink: 'Open Recent Link',
+    },
+    quickPublish: {
+      progressTitle: 'Publishing HTML…',
+      progressCollecting: 'Collecting files…',
+      progressZipping: 'Packaging project…',
+      progressUploading: 'Uploading…',
+      progressSaving: 'Saving record…',
+      progressRetrying: 'Upload failed, retrying ({attempt}/{max})…',
+      noTarget:
+        'No publishable HTML found. Open a .html file, or use a folder that contains index.html.',
+      success: 'Published: {url}',
+      successCopied: 'Published and copied: {url}',
+      openLink: 'Open Link',
+      copyLink: 'Copy Link',
+      copied: 'Link copied to clipboard',
+      failed: 'Publish failed: {message}',
+      unknownError: 'Unknown error',
     },
   },
 }

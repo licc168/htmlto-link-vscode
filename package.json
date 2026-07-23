@@ -3,7 +3,7 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "publisher": "licc",
   "private": true,
@@ -45,6 +45,7 @@
   "activationEvents": [
     "onCommand:htmlToLink.openPanel",
     "onCommand:htmlToLink.deployFolder",
+    "onCommand:htmlToLink.quickPublish",
     "onCommand:htmlToLink.setToken",
     "onCommand:htmlToLink.clearToken",
     "onCommand:htmlToLink.openLastDeployUrl",
@@ -63,6 +64,12 @@
         "command": "htmlToLink.deployFolder",
         "category": "%commandCategory%",
         "title": "%command.deployFolder.title%",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "htmlToLink.quickPublish",
+        "category": "%commandCategory%",
+        "title": "%command.quickPublish.title%",
         "icon": "$(cloud-upload)"
       },
       {
@@ -103,6 +110,20 @@
       ]
     },
     "menus": {
+      "editor/title": [
+        {
+          "command": "htmlToLink.quickPublish",
+          "when": "resourceLangId == html",
+          "group": "navigation@10"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "htmlToLink.quickPublish",
+          "when": "resourceLangId == html",
+          "group": "navigation@90"
+        }
+      ],
       "view/title": [
         {
           "command": "htmlToLink.openPanel",
@@ -111,6 +132,11 @@
         }
       ],
       "explorer/context": [
+        {
+          "command": "htmlToLink.quickPublish",
+          "when": "resourceExtname == .html",
+          "group": "navigation@89"
+        },
         {
           "command": "htmlToLink.deployFolder",
           "when": "explorerResourceIsFolder",

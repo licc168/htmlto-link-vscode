@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { createOpenPanelCommand } from './commands/openPanel'
 import { createDeployFolderCommand } from './commands/deployFolder'
+import { createQuickPublishCommand } from './commands/quickPublish'
 import { createSetTokenCommand } from './commands/setToken'
 import { createClearTokenCommand } from './commands/clearToken'
 import { createOpenLastDeployUrlCommand } from './commands/openLastDeployUrl'
@@ -20,6 +21,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       'htmlToLink.deployFolder',
       createDeployFolderCommand(context)
+    ),
+    vscode.commands.registerCommand(
+      'htmlToLink.quickPublish',
+      createQuickPublishCommand(context)
     ),
     vscode.commands.registerCommand(
       'htmlToLink.setToken',

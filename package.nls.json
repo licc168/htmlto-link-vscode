@@ -4,6 +4,7 @@
   "commandCategory": "Quick Static Site Publish",
   "command.openPanel.title": "Open Publish Panel",
   "command.deployFolder.title": "Select Folder and Publish",
+  "command.quickPublish.title": "Publish",
   "command.setToken.title": "Open Token Settings",
   "command.clearToken.title": "Clear Saved Token",
   "command.openLastDeployUrl.title": "Open Last Published Link",
