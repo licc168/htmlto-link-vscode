@@ -100,13 +100,13 @@ export class HtmlToLinkPanel {
   private isReady = false
   private readonly pendingMessages: PendingWebviewMessage[] = []
   private state: PanelState
+  private pendingAutoDeploy = false
 
   static async createOrShow(
     context: vscode.ExtensionContext,
     resourceUri?: vscode.Uri
   ) {
     const locale = await getPreferredUiLocale(context)
-    const column = vscode.window.activeTextEditor?.viewColumn
     // 右键指定路径优先；否则自动识别工作区根目录 / 上次使用目录
     const initialFolderPath = resourceUri
       ? await resolveFolderFromUri(resourceUri)
@@ -114,7 +114,7 @@ export class HtmlToLinkPanel {
 
     if (HtmlToLinkPanel.currentPanel) {
       await HtmlToLinkPanel.currentPanel.applyLocale(locale)
-      HtmlToLinkPanel.currentPanel.panel.reveal(column)
+      HtmlToLinkPanel.currentPanel.panel.reveal(vscode.ViewColumn.Beside)
 
       if (resourceUri && initialFolderPath) {
         // 从资源管理器显式打开时，始终切换到指定目录
@@ -135,7 +135,7 @@ export class HtmlToLinkPanel {
     const panel = vscode.window.createWebviewPanel(
       'htmlToLink.panel',
       messages[locale].panel.panelTitle,
-      column ?? vscode.ViewColumn.One,
+      vscode.ViewColumn.Beside,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
@@ -150,6 +150,43 @@ export class HtmlToLinkPanel {
     )
 
     return HtmlToLinkPanel.currentPanel
+  }
+
+  /**
+   * 打开面板并自动触发一次部署（quickPublish 入口）
+   */
+  static async createOrShowAndDeploy(
+    context: vscode.ExtensionContext,
+    resourceUri?: vscode.Uri
+  ) {
+    const panel = await HtmlToLinkPanel.createOrShow(context, resourceUri)
+    panel.pendingAutoDeploy = true
+
+    // 如果面板已经 ready，立即触发
+    if (panel.isReady) {
+      panel.triggerAutoDeploy()
+    }
+    // 否则等 ready 消息到达时触发（见 handleWebviewMessage 中 ready 分支）
+
+    return panel
+  }
+
+  private triggerAutoDeploy() {
+    this.pendingAutoDeploy = false
+    if (!this.state.folderPath) return
+
+    // 已保存 token 或游客模式可直接部署；否则引导填写 token
+    if (this.state.tokenMode === 'custom' || (!this.state.hasSavedToken && this.state.tokenMode !== 'guest')) {
+      this.setTokenMode('custom', true)
+      this.showToast('info', this.copy.toastPromptEnterToken)
+      return
+    }
+
+    void this.handleDeploy({
+      folderPath: this.state.folderPath,
+      entryFile: this.state.entryFile,
+      tokenMode: this.state.tokenMode,
+    })
   }
 
   static async openForTokenInput(context: vscode.ExtensionContext) {
@@ -213,6 +250,9 @@ export class HtmlToLinkPanel {
             await this.loadFolder(initialFolderPath)
           }
           this.flushPendingMessages()
+          if (this.pendingAutoDeploy) {
+            this.triggerAutoDeploy()
+          }
           break
         case 'setLocale':
           if (isUiLocale(message.locale)) {
@@ -559,61 +599,62 @@ export class HtmlToLinkPanel {
       background: var(--vscode-editor-background);
     }
     .app {
-      max-width: 920px;
+      max-width: 860px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 14px 16px;
       display: grid;
-      gap: 16px;
+      gap: 10px;
     }
     .hero {
-      padding: 20px 22px;
-      border-radius: 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
       background:
         radial-gradient(circle at top right, color-mix(in srgb, var(--vscode-button-background) 22%, transparent) 0, transparent 34%),
         linear-gradient(135deg, color-mix(in srgb, var(--vscode-editorWidget-background) 88%, transparent), color-mix(in srgb, var(--vscode-sideBar-background) 84%, transparent));
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.2));
-      box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.10);
       display: grid;
-      gap: 16px;
+      gap: 10px;
     }
     .hero-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
     }
     .hero-copy h1 {
-      margin: 0 0 8px;
-      font-size: 26px;
+      margin: 0 0 4px;
+      font-size: 19px;
       line-height: 1.2;
     }
     .hero-copy p {
       margin: 0;
       color: var(--vscode-descriptionForeground);
-      line-height: 1.6;
+      line-height: 1.45;
+      font-size: 12px;
     }
     .locale-box {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px;
+      gap: 8px;
+      padding: 4px;
       border-radius: 999px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
       background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
     }
     .locale-label {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--vscode-descriptionForeground);
-      padding-left: 8px;
+      padding-left: 6px;
     }
     .locale-switch {
       display: inline-flex;
-      gap: 6px;
+      gap: 4px;
     }
     .locale-switch button {
-      min-height: 30px;
-      padding: 0 12px;
+      min-height: 26px;
+      padding: 0 10px;
       border-radius: 999px;
       background: transparent;
       color: var(--vscode-descriptionForeground);
@@ -625,31 +666,31 @@ export class HtmlToLinkPanel {
     .grid {
       display: grid;
       grid-template-columns: 1.2fr 0.8fr;
-      gap: 16px;
+      gap: 10px;
     }
     .card {
-      border-radius: 18px;
+      border-radius: 12px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
       background: color-mix(in srgb, var(--vscode-sideBar-background) 76%, transparent);
-      padding: 18px;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      padding: 12px 14px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.07);
     }
     .card h2 {
-      margin: 0 0 14px;
-      font-size: 15px;
+      margin: 0 0 9px;
+      font-size: 13.5px;
     }
     .muted {
       color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11.5px;
+      line-height: 1.5;
     }
     .stack {
       display: grid;
-      gap: 12px;
+      gap: 8px;
     }
     .row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
     }
     .row.wrap {
@@ -657,10 +698,10 @@ export class HtmlToLinkPanel {
     }
     .field {
       display: grid;
-      gap: 6px;
+      gap: 5px;
     }
     .field-label {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--vscode-descriptionForeground);
     }
     input[type="text"],
@@ -670,9 +711,9 @@ export class HtmlToLinkPanel {
       border: 1px solid var(--vscode-input-border, transparent);
       background: var(--vscode-input-background);
       color: var(--vscode-input-foreground);
-      border-radius: 12px;
-      min-height: 38px;
-      padding: 0 12px;
+      border-radius: 8px;
+      min-height: 30px;
+      padding: 0 10px;
       outline: none;
     }
     input[type="text"]:focus,
@@ -682,11 +723,12 @@ export class HtmlToLinkPanel {
     }
     button {
       border: 0;
-      border-radius: 12px;
-      min-height: 38px;
-      padding: 0 14px;
+      border-radius: 8px;
+      min-height: 30px;
+      padding: 0 11px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 12.5px;
       color: var(--vscode-button-foreground);
       background: var(--vscode-button-background);
     }
@@ -710,16 +752,16 @@ export class HtmlToLinkPanel {
       cursor: not-allowed;
       pointer-events: none;
       position: relative;
-      padding-left: 32px;
+      padding-left: 28px;
     }
     .deploying::before {
       content: '';
       position: absolute;
-      left: 12px;
+      left: 10px;
       top: 50%;
-      width: 14px;
-      height: 14px;
-      margin-top: -7px;
+      width: 12px;
+      height: 12px;
+      margin-top: -6px;
       border: 2px solid currentColor;
       border-right-color: transparent;
       border-radius: 50%;
@@ -731,23 +773,23 @@ export class HtmlToLinkPanel {
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      min-height: 28px;
-      padding: 0 10px;
+      gap: 5px;
+      min-height: 24px;
+      padding: 0 8px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 11px;
       background: color-mix(in srgb, var(--vscode-badge-background) 82%, transparent);
       color: var(--vscode-badge-foreground);
     }
     .mode-grid {
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
     .mode-option {
       display: grid;
-      gap: 4px;
-      padding: 12px 14px;
-      border-radius: 14px;
+      gap: 3px;
+      padding: 8px 11px;
+      border-radius: 10px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
       background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
       color: var(--vscode-foreground);
@@ -758,19 +800,19 @@ export class HtmlToLinkPanel {
       background: color-mix(in srgb, var(--vscode-button-background) 14%, var(--vscode-editor-background));
     }
     .mode-option strong {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--vscode-foreground);
     }
     .mode-option span {
       color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-      line-height: 1.5;
+      font-size: 11.5px;
+      line-height: 1.4;
     }
     .note {
-      border-radius: 14px;
-      padding: 12px 14px;
-      font-size: 12px;
-      line-height: 1.6;
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 11.5px;
+      line-height: 1.5;
       border: 1px solid color-mix(in srgb, var(--vscode-charts-yellow) 35%, transparent);
       background: color-mix(in srgb, var(--vscode-charts-yellow) 10%, transparent);
     }
@@ -781,67 +823,82 @@ export class HtmlToLinkPanel {
     .checkbox {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 12px;
+      gap: 6px;
+      font-size: 11.5px;
       color: var(--vscode-descriptionForeground);
     }
     .checkbox input {
       margin: 0;
     }
+    .deploy-options-compact {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--vscode-sideBar-background) 50%, transparent);
+      border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.12));
+    }
+    .deploy-options-compact .muted {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
     .inline-action {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       width: fit-content;
-      min-height: 34px;
-      padding: 0 12px;
+      min-height: 28px;
+      padding: 0 10px;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--vscode-charts-blue) 26%, var(--vscode-widget-border, rgba(127,127,127,0.18)));
       background: color-mix(in srgb, var(--vscode-charts-blue) 10%, transparent);
       color: var(--vscode-foreground);
     }
     .inline-action strong {
-      font-size: 12px;
+      font-size: 11.5px;
     }
     .step-list {
       margin: 0;
-      padding: 0 20px 16px 20px;
+      padding: 0 16px 12px 16px;
       list-style: none;
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
     .step-list li {
       display: grid;
-      grid-template-columns: 28px 1fr;
-      gap: 12px;
+      grid-template-columns: 24px 1fr;
+      gap: 10px;
       align-items: start;
     }
     .step-index {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 999px;
       background: color-mix(in srgb, var(--vscode-charts-blue) 18%, transparent);
       color: var(--vscode-foreground);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       border: 1px solid color-mix(in srgb, var(--vscode-charts-blue) 26%, transparent);
     }
     .step-copy {
       display: grid;
-      gap: 4px;
+      gap: 3px;
       min-width: 0;
     }
     .step-copy strong {
-      font-size: 13px;
-      line-height: 1.4;
+      font-size: 12.5px;
+      line-height: 1.35;
     }
     .step-copy span {
       color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11.5px;
+      line-height: 1.5;
       word-break: break-word;
     }
     .result-link {
@@ -849,31 +906,31 @@ export class HtmlToLinkPanel {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      padding: 10px 12px;
-      border-radius: 12px;
+      padding: 7px 10px;
+      border-radius: 8px;
       background: color-mix(in srgb, var(--vscode-editor-background) 80%, transparent);
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.18));
-      font-size: 12px;
+      font-size: 11.5px;
     }
     .toast-viewport {
       position: fixed;
-      top: 18px;
-      right: 18px;
-      width: min(360px, calc(100vw - 36px));
+      top: 14px;
+      right: 14px;
+      width: min(340px, calc(100vw - 28px));
       display: grid;
-      gap: 10px;
+      gap: 8px;
       z-index: 30;
       pointer-events: none;
     }
     .toast {
       pointer-events: auto;
       display: grid;
-      gap: 6px;
-      padding: 14px 16px;
-      border-radius: 16px;
+      gap: 4px;
+      padding: 10px 13px;
+      border-radius: 12px;
       border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.2));
       background: color-mix(in srgb, var(--vscode-notifications-background, var(--vscode-editorWidget-background)) 94%, transparent);
-      box-shadow: 0 16px 40px rgba(0,0,0,0.28);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.26);
       transform: translateY(-6px);
       opacity: 0;
       transition: opacity 160ms ease, transform 160ms ease;
@@ -883,13 +940,13 @@ export class HtmlToLinkPanel {
       transform: translateY(0);
     }
     .toast-title {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
-      line-height: 1.35;
+      line-height: 1.3;
     }
     .toast-text {
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11.5px;
+      line-height: 1.5;
       color: var(--vscode-descriptionForeground);
       word-break: break-word;
     }
@@ -911,19 +968,19 @@ export class HtmlToLinkPanel {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 16px;
       background: color-mix(in srgb, var(--vscode-editor-background) 48%, rgba(0,0,0,0.5));
       backdrop-filter: blur(10px);
       z-index: 20;
     }
     .modal {
-      width: min(440px, 100%);
-      border-radius: 20px;
+      width: min(400px, 100%);
+      border-radius: 14px;
       border: 1px solid color-mix(in srgb, var(--vscode-charts-yellow) 24%, var(--vscode-widget-border, rgba(127,127,127,0.22)));
       background:
         radial-gradient(circle at top right, color-mix(in srgb, var(--vscode-charts-yellow) 16%, transparent), transparent 42%),
         linear-gradient(180deg, color-mix(in srgb, var(--vscode-editorWidget-background) 96%, transparent), color-mix(in srgb, var(--vscode-sideBar-background) 90%, transparent));
-      box-shadow: 0 24px 60px rgba(0,0,0,0.34);
+      box-shadow: 0 18px 46px rgba(0,0,0,0.32);
       overflow: hidden;
     }
     .modal.danger {
@@ -935,50 +992,50 @@ export class HtmlToLinkPanel {
     .modal-head {
       display: flex;
       align-items: flex-start;
-      gap: 14px;
-      padding: 20px 20px 14px;
+      gap: 11px;
+      padding: 14px 16px 10px;
     }
     .modal-icon {
-      width: 42px;
-      height: 42px;
+      width: 34px;
+      height: 34px;
       flex: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 14px;
-      font-size: 20px;
+      border-radius: 11px;
+      font-size: 17px;
       background: color-mix(in srgb, var(--vscode-charts-yellow) 18%, transparent);
       color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow));
       border: 1px solid color-mix(in srgb, var(--vscode-charts-yellow) 28%, transparent);
     }
     .modal-copy {
       display: grid;
-      gap: 6px;
+      gap: 4px;
       min-width: 0;
     }
     .modal-title {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 700;
-      line-height: 1.35;
+      line-height: 1.3;
     }
     .modal-text {
       color: var(--vscode-descriptionForeground);
-      font-size: 13px;
-      line-height: 1.7;
+      font-size: 12.5px;
+      line-height: 1.55;
     }
     .modal-list {
       margin: 0;
-      padding: 0 20px 16px 20px;
+      padding: 0 16px 12px 16px;
       list-style: none;
       display: grid;
-      gap: 8px;
+      gap: 6px;
       color: var(--vscode-descriptionForeground);
-      font-size: 12px;
+      font-size: 11.5px;
     }
     .modal-list li {
       display: flex;
       align-items: flex-start;
-      gap: 8px;
+      gap: 6px;
     }
     .modal-list li::before {
       content: '•';
@@ -987,14 +1044,14 @@ export class HtmlToLinkPanel {
     }
     .modal-actions {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       justify-content: flex-end;
-      padding: 16px 20px 20px;
+      padding: 12px 16px 14px;
       border-top: 1px solid color-mix(in srgb, var(--vscode-widget-border, rgba(127,127,127,0.18)) 80%, transparent);
       background: color-mix(in srgb, var(--vscode-editor-background) 24%, transparent);
     }
     .modal-actions button {
-      min-width: 108px;
+      min-width: 96px;
     }
     .button-warning {
       color: var(--vscode-button-foreground);
@@ -1018,15 +1075,15 @@ export class HtmlToLinkPanel {
     .footer {
       text-align: center;
       color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-      padding-bottom: 4px;
+      font-size: 11.5px;
+      padding-bottom: 2px;
     }
     @media (max-width: 900px) {
       .grid {
         grid-template-columns: 1fr;
       }
       .app {
-        padding: 16px;
+        padding: 12px;
       }
       .hero-top {
         flex-direction: column;
@@ -1116,14 +1173,13 @@ export class HtmlToLinkPanel {
       </section>
     </div>
 
-    <section class="card stack">
-      <h2 id="deployOptionsTitle"></h2>
+    <div class="deploy-options-compact">
       <label class="checkbox">
         <input id="useExistingShareUrl" type="checkbox" />
         <span id="reuseExistingShareUrlLabel"></span>
       </label>
-      <div id="deployHint" class="muted"></div>
-    </section>
+      <span id="deployHint" class="muted" style="margin-left:auto;"></span>
+    </div>
 
     <section class="card stack">
       <div class="row wrap" style="justify-content: space-between;">
@@ -1250,7 +1306,6 @@ export class HtmlToLinkPanel {
     const openSettingsBtn = document.getElementById('openSettingsBtn');
     const deployBtn = document.getElementById('deployBtn');
     const clearTokenBtn = document.getElementById('clearTokenBtn');
-    const deployOptionsTitle = document.getElementById('deployOptionsTitle');
     const reuseExistingShareUrlLabel = document.getElementById('reuseExistingShareUrlLabel');
     const resultSectionTitle = document.getElementById('resultSectionTitle');
     const copyUrlBtn = document.getElementById('copyUrlBtn');
@@ -1340,7 +1395,6 @@ export class HtmlToLinkPanel {
         deployBtn.disabled = false;
       }
       clearTokenBtn.textContent = currentCopy.clearSavedToken;
-      deployOptionsTitle.textContent = currentCopy.deployOptionsTitle;
       reuseExistingShareUrlLabel.textContent = currentCopy.reuseExistingDeployment;
       resultSectionTitle.textContent = currentCopy.resultSectionTitle;
       openLastUrlBtn.textContent = currentCopy.openLastLink;
@@ -1352,12 +1406,12 @@ export class HtmlToLinkPanel {
       renderModeOptions(currentCopy);
       renderTokenHelp(currentCopy);
 
-      const canReuseExistingShareUrl = getCanReuseExistingShareUrl();
+      const canReuse = Boolean(state.canReuseExistingShareUrl);
       folderPathInput.value = state.folderPath || '';
       customTokenInput.value = state.customToken || '';
       saveTokenCheckbox.checked = Boolean(state.saveToken);
-      useExistingShareUrl.checked = Boolean(state.useExistingShareUrl && state.previousShareUrl);
-      useExistingShareUrl.disabled = !canReuseExistingShareUrl;
+      useExistingShareUrl.checked = canReuse && state.useExistingShareUrl !== false;
+      useExistingShareUrl.disabled = !canReuse;
 
       savedMode.classList.toggle('hidden', !state.hasSavedToken);
       customTokenBlock.classList.toggle('hidden', state.tokenMode !== 'custom');
@@ -1433,22 +1487,8 @@ export class HtmlToLinkPanel {
         deployHint.textContent = currentCopy.deployHintWithoutFolder;
       }
 
-      if (!canReuseExistingShareUrl && state.useExistingShareUrl) {
-        state.useExistingShareUrl = false;
-        useExistingShareUrl.checked = false;
-      }
-    }
-
-    function getCanReuseExistingShareUrl() {
-      if (!state.previousShareUrl) {
-        return false;
-      }
-
-      if (state.tokenMode === 'guest') {
-        return Boolean(state.previousIsTemporary && state.previousUpdateToken);
-      }
-
-      return !state.previousIsTemporary;
+      // 不再在此处修改 state.useExistingShareUrl，避免首次 render 时
+      // 因 previousShareUrl 尚未加载而把默认值 true 清零
     }
 
     function showToast(intent, text) {
@@ -1692,6 +1732,16 @@ export class HtmlToLinkPanel {
 
       if (message.type === 'toast' && message.text) {
         showToast(message.intent || 'info', message.text);
+        return;
+      }
+
+      if (message.type === 'focusToken') {
+        state.tokenMode = 'custom';
+        render();
+        window.setTimeout(() => {
+          customTokenInput.focus();
+          customTokenInput.select();
+        }, 30);
         return;
       }
 

@@ -9,36 +9,42 @@ import { HtmlToLinkSidebarViewProvider } from './panel/HtmlToLinkSidebarView'
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('[HtmlToLink] activate called')
-  context.subscriptions.push(
+
+  // 每个注册独立 try-catch，一个失败不影响其他
+  const safe = (label: string, fn: () => vscode.Disposable) => {
+    try {
+      context.subscriptions.push(fn())
+    } catch (err) {
+      console.error(`[HtmlToLink] Failed to register ${label}:`, err)
+    }
+  }
+
+  safe('sidebarView', () =>
     vscode.window.registerWebviewViewProvider(
       HtmlToLinkSidebarViewProvider.viewType,
       new HtmlToLinkSidebarViewProvider(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.openPanel',
-      createOpenPanelCommand(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.deployFolder',
-      createDeployFolderCommand(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.quickPublish',
-      createQuickPublishCommand(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.setToken',
-      createSetTokenCommand(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.clearToken',
-      createClearTokenCommand(context)
-    ),
-    vscode.commands.registerCommand(
-      'htmlToLink.openLastDeployUrl',
-      createOpenLastDeployUrlCommand(context)
     )
   )
+  safe('openPanel', () =>
+    vscode.commands.registerCommand('htmlToLink.openPanel', createOpenPanelCommand(context))
+  )
+  safe('deployFolder', () =>
+    vscode.commands.registerCommand('htmlToLink.deployFolder', createDeployFolderCommand(context))
+  )
+  safe('quickPublish', () =>
+    vscode.commands.registerCommand('htmlToLink.quickPublish', createQuickPublishCommand(context))
+  )
+  safe('setToken', () =>
+    vscode.commands.registerCommand('htmlToLink.setToken', createSetTokenCommand(context))
+  )
+  safe('clearToken', () =>
+    vscode.commands.registerCommand('htmlToLink.clearToken', createClearTokenCommand(context))
+  )
+  safe('openLastDeployUrl', () =>
+    vscode.commands.registerCommand('htmlToLink.openLastDeployUrl', createOpenLastDeployUrlCommand(context))
+  )
+
+  console.log('[HtmlToLink] activate done')
 }
 
 export function deactivate() {}

@@ -53,16 +53,16 @@ class HtmlToLinkPanel {
     isReady = false;
     pendingMessages = [];
     state;
+    pendingAutoDeploy = false;
     static async createOrShow(context, resourceUri) {
         const locale = await (0, i18n_1.getPreferredUiLocale)(context);
-        const column = vscode.window.activeTextEditor?.viewColumn;
         // 右键指定路径优先；否则自动识别工作区根目录 / 上次使用目录
         const initialFolderPath = resourceUri
             ? await resolveFolderFromUri(resourceUri)
             : await (0, deploymentState_1.resolveDefaultFolderPath)(context);
         if (HtmlToLinkPanel.currentPanel) {
             await HtmlToLinkPanel.currentPanel.applyLocale(locale);
-            HtmlToLinkPanel.currentPanel.panel.reveal(column);
+            HtmlToLinkPanel.currentPanel.panel.reveal(vscode.ViewColumn.Beside);
             if (resourceUri && initialFolderPath) {
                 // 从资源管理器显式打开时，始终切换到指定目录
                 await HtmlToLinkPanel.currentPanel.loadFolder(initialFolderPath);
@@ -77,12 +77,41 @@ class HtmlToLinkPanel {
             }
             return HtmlToLinkPanel.currentPanel;
         }
-        const panel = vscode.window.createWebviewPanel('htmlToLink.panel', i18n_1.messages[locale].panel.panelTitle, column ?? vscode.ViewColumn.One, {
+        const panel = vscode.window.createWebviewPanel('htmlToLink.panel', i18n_1.messages[locale].panel.panelTitle, vscode.ViewColumn.Beside, {
             enableScripts: true,
             retainContextWhenHidden: true,
         });
         HtmlToLinkPanel.currentPanel = new HtmlToLinkPanel(context, panel, locale, initialFolderPath);
         return HtmlToLinkPanel.currentPanel;
+    }
+    /**
+     * 打开面板并自动触发一次部署（quickPublish 入口）
+     */
+    static async createOrShowAndDeploy(context, resourceUri) {
+        const panel = await HtmlToLinkPanel.createOrShow(context, resourceUri);
+        panel.pendingAutoDeploy = true;
+        // 如果面板已经 ready，立即触发
+        if (panel.isReady) {
+            panel.triggerAutoDeploy();
+        }
+        // 否则等 ready 消息到达时触发（见 handleWebviewMessage 中 ready 分支）
+        return panel;
+    }
+    triggerAutoDeploy() {
+        this.pendingAutoDeploy = false;
+        if (!this.state.folderPath)
+            return;
+        // 已保存 token 或游客模式可直接部署；否则引导填写 token
+        if (this.state.tokenMode === 'custom' || (!this.state.hasSavedToken && this.state.tokenMode !== 'guest')) {
+            this.setTokenMode('custom', true);
+            this.showToast('info', this.copy.toastPromptEnterToken);
+            return;
+        }
+        void this.handleDeploy({
+            folderPath: this.state.folderPath,
+            entryFile: this.state.entryFile,
+            tokenMode: this.state.tokenMode,
+        });
     }
     static async openForTokenInput(context) {
         const panel = await HtmlToLinkPanel.createOrShow(context);
@@ -128,6 +157,9 @@ class HtmlToLinkPanel {
                         await this.loadFolder(initialFolderPath);
                     }
                     this.flushPendingMessages();
+                    if (this.pendingAutoDeploy) {
+                        this.triggerAutoDeploy();
+                    }
                     break;
                 case 'setLocale':
                     if ((0, i18n_1.isUiLocale)(message.locale)) {
@@ -1202,7 +1234,7 @@ class HtmlToLinkPanel {
       folderPathInput.value = state.folderPath || '';
       customTokenInput.value = state.customToken || '';
       saveTokenCheckbox.checked = Boolean(state.saveToken);
-      useExistingShareUrl.checked = Boolean(state.useExistingShareUrl && state.previousShareUrl);
+      useExistingShareUrl.checked = canReuseExistingShareUrl && state.useExistingShareUrl;
       useExistingShareUrl.disabled = !canReuseExistingShareUrl;
 
       savedMode.classList.toggle('hidden', !state.hasSavedToken);
@@ -1279,10 +1311,8 @@ class HtmlToLinkPanel {
         deployHint.textContent = currentCopy.deployHintWithoutFolder;
       }
 
-      if (!canReuseExistingShareUrl && state.useExistingShareUrl) {
-        state.useExistingShareUrl = false;
-        useExistingShareUrl.checked = false;
-      }
+      // 不再在此处修改 state.useExistingShareUrl，避免首次 render 时
+      // 因 previousShareUrl 尚未加载而把默认值 true 清零
     }
 
     function getCanReuseExistingShareUrl() {
@@ -1538,6 +1568,16 @@ class HtmlToLinkPanel {
 
       if (message.type === 'toast' && message.text) {
         showToast(message.intent || 'info', message.text);
+        return;
+      }
+
+      if (message.type === 'focusToken') {
+        state.tokenMode = 'custom';
+        render();
+        window.setTimeout(() => {
+          customTokenInput.focus();
+          customTokenInput.select();
+        }, 30);
         return;
       }
 

@@ -45,7 +45,23 @@ const openLastDeployUrl_1 = require("./commands/openLastDeployUrl");
 const HtmlToLinkSidebarView_1 = require("./panel/HtmlToLinkSidebarView");
 function activate(context) {
     console.log('[HtmlToLink] activate called');
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider(HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider.viewType, new HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider(context)), vscode.commands.registerCommand('htmlToLink.openPanel', (0, openPanel_1.createOpenPanelCommand)(context)), vscode.commands.registerCommand('htmlToLink.deployFolder', (0, deployFolder_1.createDeployFolderCommand)(context)), vscode.commands.registerCommand('htmlToLink.quickPublish', (0, quickPublish_1.createQuickPublishCommand)(context)), vscode.commands.registerCommand('htmlToLink.setToken', (0, setToken_1.createSetTokenCommand)(context)), vscode.commands.registerCommand('htmlToLink.clearToken', (0, clearToken_1.createClearTokenCommand)(context)), vscode.commands.registerCommand('htmlToLink.openLastDeployUrl', (0, openLastDeployUrl_1.createOpenLastDeployUrlCommand)(context)));
+    // 每个注册独立 try-catch，一个失败不影响其他
+    const safe = (label, fn) => {
+        try {
+            context.subscriptions.push(fn());
+        }
+        catch (err) {
+            console.error(`[HtmlToLink] Failed to register ${label}:`, err);
+        }
+    };
+    safe('sidebarView', () => vscode.window.registerWebviewViewProvider(HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider.viewType, new HtmlToLinkSidebarView_1.HtmlToLinkSidebarViewProvider(context)));
+    safe('openPanel', () => vscode.commands.registerCommand('htmlToLink.openPanel', (0, openPanel_1.createOpenPanelCommand)(context)));
+    safe('deployFolder', () => vscode.commands.registerCommand('htmlToLink.deployFolder', (0, deployFolder_1.createDeployFolderCommand)(context)));
+    safe('quickPublish', () => vscode.commands.registerCommand('htmlToLink.quickPublish', (0, quickPublish_1.createQuickPublishCommand)(context)));
+    safe('setToken', () => vscode.commands.registerCommand('htmlToLink.setToken', (0, setToken_1.createSetTokenCommand)(context)));
+    safe('clearToken', () => vscode.commands.registerCommand('htmlToLink.clearToken', (0, clearToken_1.createClearTokenCommand)(context)));
+    safe('openLastDeployUrl', () => vscode.commands.registerCommand('htmlToLink.openLastDeployUrl', (0, openLastDeployUrl_1.createOpenLastDeployUrlCommand)(context)));
+    console.log('[HtmlToLink] activate done');
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map
