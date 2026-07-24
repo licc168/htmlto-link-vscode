@@ -123,6 +123,8 @@ function buildFormData(params: DeployArchiveParams) {
     formData.append('update_token', params.updateToken)
   }
 
+  formData.append('channel', 'vscode')
+
   return formData
 }
 

@@ -43,8 +43,18 @@ const setToken_1 = require("./commands/setToken");
 const clearToken_1 = require("./commands/clearToken");
 const openLastDeployUrl_1 = require("./commands/openLastDeployUrl");
 const HtmlToLinkSidebarView_1 = require("./panel/HtmlToLinkSidebarView");
+const telemetry_1 = require("./telemetry");
 function activate(context) {
     console.log('[HtmlToLink] activate called');
+    // 发送激活 ping（fire-and-forget，不阻塞启动）
+    const apiBaseUrl = vscode.workspace
+        .getConfiguration('htmlToLink')
+        .get('apiBaseUrl', 'https://htmlto.link');
+    (0, telemetry_1.sendActivationPing)({
+        extName: 'htmlto-link-vscode',
+        extensionId: 'licc.htmlto-link-vscode',
+        apiBaseUrl,
+    });
     // 每个注册独立 try-catch，一个失败不影响其他
     const safe = (label, fn) => {
         try {
