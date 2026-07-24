@@ -3,13 +3,13 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "license": "MIT",
   "publisher": "licc",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://gitee.com/hangzhou_piaoge_ecommerce/htmlto-link-vscode.git"
+    "url": "https://github.com/licc168/htmlto-link-vscode.git"
   },
   "engines": {
     "vscode": "^1.90.0"
