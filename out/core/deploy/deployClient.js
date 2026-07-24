@@ -68,6 +68,7 @@ function buildFormData(params) {
     if (params.updateToken) {
         formData.append('update_token', params.updateToken);
     }
+    formData.append('channel', 'vscode');
     return formData;
 }
 function isRetryable(status, message) {

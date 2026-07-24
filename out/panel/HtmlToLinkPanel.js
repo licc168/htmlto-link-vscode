@@ -255,12 +255,14 @@ class HtmlToLinkPanel {
         this.state.folderPath = folderPath;
         this.state.entryCandidates = candidates;
         this.state.entryFile = preferredEntry;
-        this.state.previousShareUrl = metadata?.shareUrl;
-        this.state.previousUpdateToken = metadata?.updateToken;
+        this.state.previousShareUrl = metadata?.shareUrl || '';
+        this.state.previousUpdateToken = metadata?.updateToken || '';
         this.state.previousIsTemporary =
             metadata?.temporary ?? isTemporaryShareUrl(metadata?.shareUrl);
-        this.state.previousExpiresAt = metadata?.expiresAt;
-        this.state.lastResultUrl = metadata?.shareUrl || this.state.lastResultUrl;
+        this.state.previousExpiresAt = metadata?.expiresAt || '';
+        // 有历史记录时同步展示；无记录时不沿用旧链接，避免误导
+        this.state.lastResultUrl = metadata?.shareUrl || '';
+        this.state.canReuseExistingShareUrl = this.canReuseExistingDeployment(this.state.tokenMode);
         await (0, deploymentState_1.setLastUsedFolder)(this.context, folderPath);
         await this.refreshState();
     }
@@ -365,6 +367,7 @@ class HtmlToLinkPanel {
     }
     setTokenMode(tokenMode, focus = false) {
         this.state.tokenMode = tokenMode;
+        this.state.canReuseExistingShareUrl = this.canReuseExistingDeployment(tokenMode);
         this.postState();
         this.postMessage({
             type: 'setTokenMode',
@@ -1282,33 +1285,49 @@ class HtmlToLinkPanel {
         button.classList.toggle('active', active);
       });
 
-      if (state.previousShareUrl) {
-        previousShareBlock.classList.remove('hidden');
-        if (canReuseExistingShareUrl) {
-          previousShareBlock.textContent = format(currentCopy.previousShareReusable, {
-            url: state.previousShareUrl,
-          });
+      // 历史部署提示：无 URL 时隐藏；有 URL 时本地计算是否可复用（勿引用未定义变量，否则 render 会中断）
+      const previousShareUrl = String(state.previousShareUrl || '').trim();
+      if (previousShareUrl) {
+        const canReusePrevious =
+          typeof state.canReuseExistingShareUrl === 'boolean'
+            ? state.canReuseExistingShareUrl
+            : state.tokenMode === 'guest'
+              ? Boolean(state.previousIsTemporary && state.previousUpdateToken)
+              : !state.previousIsTemporary;
+        let previousShareText = '';
+        if (canReusePrevious) {
+          previousShareText = format(currentCopy.previousShareReusable, { url: previousShareUrl });
         } else if (state.previousIsTemporary) {
-          previousShareBlock.textContent = format(currentCopy.previousShareGuestUnavailable, {
-            url: state.previousShareUrl,
+          previousShareText = format(currentCopy.previousShareGuestUnavailable, {
+            url: previousShareUrl,
           });
         } else {
-          previousShareBlock.textContent = format(currentCopy.previousShareIdentityUnavailable, {
-            url: state.previousShareUrl,
+          previousShareText = format(currentCopy.previousShareIdentityUnavailable, {
+            url: previousShareUrl,
           });
+        }
+        if (previousShareText) {
+          previousShareBlock.classList.remove('hidden');
+          previousShareBlock.textContent = previousShareText;
+        } else {
+          previousShareBlock.classList.add('hidden');
+          previousShareBlock.textContent = '';
         }
       } else {
         previousShareBlock.classList.add('hidden');
         previousShareBlock.textContent = '';
       }
 
-      if (state.lastResultUrl) {
+      // 部署成功后始终在「部署结果」展示分享链接
+      const resultShareUrl = String(state.lastResultUrl || state.lastDeployUrl || '').trim();
+      if (resultShareUrl) {
         resultEmpty.classList.add('hidden');
         resultBlock.classList.remove('hidden');
-        resultUrl.textContent = state.lastResultUrl;
+        resultUrl.textContent = resultShareUrl;
       } else {
         resultEmpty.classList.remove('hidden');
         resultBlock.classList.add('hidden');
+        resultUrl.textContent = '';
       }
 
       if (state.lastDeployUrl) {
