@@ -3,13 +3,16 @@
   "displayName": "%displayName%",
   "description": "%description%",
   "icon": "media/icon.png",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "license": "MIT",
   "publisher": "licc",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/licc168/htmlto-link-vscode.git"
+  },
+  "homepage": "https://github.com/licc168/htmlto-link-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/licc168/htmlto-link-vscode/issues"
   },
   "engines": {
     "vscode": "^1.90.0"
