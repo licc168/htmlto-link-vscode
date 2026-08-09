@@ -904,6 +904,18 @@ export class HtmlToLinkPanel {
       line-height: 1.5;
       word-break: break-word;
     }
+    .renew-link {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--vscode-textLink-foreground, #3794ff);
+      text-decoration: none;
+    }
+
+    .renew-link:hover {
+      text-decoration: underline;
+    }
+
     .result-link {
       width: 100%;
       overflow: hidden;
@@ -1196,6 +1208,7 @@ export class HtmlToLinkPanel {
           <button id="copyUrlBtn" type="button"></button>
           <button id="openUrlBtn" class="secondary" type="button"></button>
         </div>
+        <a id="renewUrlBtn" class="renew-link hidden" href="#"></a>
       </div>
     </section>
 
@@ -1313,6 +1326,7 @@ export class HtmlToLinkPanel {
     const resultSectionTitle = document.getElementById('resultSectionTitle');
     const copyUrlBtn = document.getElementById('copyUrlBtn');
     const openUrlBtn = document.getElementById('openUrlBtn');
+    const renewUrlBtn = document.getElementById('renewUrlBtn') as HTMLAnchorElement | null;
     const footerText = document.getElementById('footerText');
     const savedModeTitle = document.getElementById('savedModeTitle');
     const savedModeDesc = document.getElementById('savedModeDesc');
@@ -1404,6 +1418,9 @@ export class HtmlToLinkPanel {
       resultEmpty.textContent = currentCopy.resultEmpty;
       copyUrlBtn.textContent = currentCopy.copyLink;
       openUrlBtn.textContent = currentCopy.openLink;
+      if (renewUrlBtn) {
+        renewUrlBtn.textContent = currentCopy.renewLink;
+      }
       footerText.textContent = currentCopy.footer;
 
       renderModeOptions(currentCopy);
@@ -1490,6 +1507,25 @@ export class HtmlToLinkPanel {
         resultEmpty.classList.remove('hidden');
         resultBlock.classList.add('hidden');
         resultUrl.textContent = '';
+      }
+
+      if (renewUrlBtn) {
+        let renewHref = '';
+        try {
+          const parsed = new URL(resultShareUrl);
+          const code = parsed.pathname.replace(/^\//, '').split('/')[0];
+          if (code) {
+            renewHref = parsed.origin + '/pricing?deployment=' + encodeURIComponent(code);
+          }
+        } catch {
+          renewHref = '';
+        }
+        if (renewHref) {
+          renewUrlBtn.href = renewHref;
+          renewUrlBtn.classList.remove('hidden');
+        } else {
+          renewUrlBtn.classList.add('hidden');
+        }
       }
 
       if (state.lastDeployUrl) {
@@ -1733,6 +1769,16 @@ export class HtmlToLinkPanel {
         vscode.postMessage({ type: 'openUrl', url });
       }
     });
+
+    if (renewUrlBtn) {
+      renewUrlBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        const href = renewUrlBtn.href;
+        if (href && href !== '#') {
+          vscode.postMessage({ type: 'openUrl', url: href });
+        }
+      });
+    }
 
     openLastUrlBtn.addEventListener('click', () => {
       const url = state.lastDeployUrl || state.lastResultUrl;

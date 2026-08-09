@@ -52,6 +52,7 @@ type PanelMessages = {
   resultEmpty: string
   copyLink: string
   openLink: string
+  renewLink: string
   footer: string
   guestConfirmTitle: string
   guestConfirmText: string
@@ -190,6 +191,7 @@ export const messages: Record<UiLocale, Messages> = {
       resultEmpty: '部署完成后，这里会显示分享链接。',
       copyLink: '复制链接',
       openLink: '打开链接',
+      renewLink: '续费延长此链接',
       footer: '支持 VS Code、Cursor、Trae 等基于 VS Code 扩展生态的编辑器。',
       guestConfirmTitle: '确认游客部署',
       guestConfirmText:
@@ -346,6 +348,7 @@ export const messages: Record<UiLocale, Messages> = {
       resultEmpty: 'The public link will appear here after publishing.',
       copyLink: 'Copy Link',
       openLink: 'Open Link',
+      renewLink: 'Renew to keep this link alive',
       footer: 'Works in VS Code, Cursor, Trae, and other editors built on the VS Code extension ecosystem.',
       guestConfirmTitle: 'Confirm Guest Publish',
       guestConfirmText:
